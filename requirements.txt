@@ -2,10 +2,15 @@ matplotlib==3.8.4
 numpy==1.26.4
 openmeteo_requests==1.4.0
 pandas==2.2.2
-pandasgui==0.2.14
+# pandasgui==0.2.14 #hat Probleme mit docker verursacht und ist auch nicht nötig
 requests==2.32.3
 requests_cache==1.2.1
 retry_requests==2.0.0
 scipy==1.13.1
 scikit-learn==1.6.1
 torch==2.6.0
+streamlit==1.37.1
+folium
+streamlit_folium
+plotly
+openpyxl #wird von Pandas genutzt um Excel Datein zu öffnen
