@@ -16,13 +16,13 @@ Die Anwendung richtet sich an:
 ## Features
 - Laden und Aufbereiten historischer Wetterdaten (API)
 - Simulation von Wetterdaten-Szenarien
-- Visualisierung von Strompreisen und Wetterparametern
+- Visualisierung von Strompreisen(Markt vs. ML-Prognose vs. Simulation) 
 
 ## Installation
 1. Repository klonen:
    ```bash
-   git clone <REPO-URL>
-   cd <REPO-ORDNER>
+   git clone https://github.com/g0ld3ner/DSI-Abschlussprojekt.git
+   cd DSI-Abschlussprojekt
    ```
 2. Erstelle eine virtuelle Umgebung und installiere Abhängigkeiten:
    ```bash
@@ -68,24 +68,17 @@ projekt-root/
 └── .gitignore             # 
 ```
 
-## Contributing
-1. Fork des Repos anlegen
-2. Branch erstellen (`git checkout -b feature/name`)
-3. Änderungen commiten
-4. Pull Request erstellen
-
 ## Kontakt & Lizenz
 Dieses Projekt entstand im Rahmen des Data Science Abschlussprojekts (DSI).
 Nutzung und Weitergabe bitte nach Rücksprache.
 Bei Fragen oder Interesse an Erweiterungen:
 
-Deine E-Mail oder GitHub-Adresse hier eintragen
+https://github.com/g0ld3ner
 
 
-
-Changelog (Auszug)
-2025-06: Refactoring, Doku, Fehlerhandling verbessert
-2025-04: Erster Prototyp für die Abschlusspräsentation 
+## Changelog:
+- 2025-06: Refactoring, Doku, Fehlerhandling verbessert
+- 2025-04: Erster Prototyp für die Abschlusspräsentation 
 
 --------------------------------
 
