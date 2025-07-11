@@ -703,7 +703,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    """
-    Starten der App mit: "streamlit run src/strom_app.py"
-    """
     pass
