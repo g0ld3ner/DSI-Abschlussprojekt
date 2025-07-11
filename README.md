@@ -3,7 +3,7 @@
 
 ## Projektbeschreibung
 Dieses Projekt ist im Rahmen meiner Weiterbildung beim DSI entstanden.
-Eine interaktive Anwendung zur Analyse und Visualisierung von Strompreisen in Abhänigkeit der Wetterdaten. Es können historische Wetter- und Preisdaten laden, simulieren und aufbereiten sowie Vorhersagen anzeigen.
+Eine interaktive Anwendung zur Analyse und Visualisierung von Strompreisen in Abhänigkeit der Wetterdaten.
 
 Kern des Projekts ist  die Strompreisprognose verschiedener Machine-Learning-Modelle im Vergleich zu den tatsächlichen Marktpreisen.
 Desweiteren können Intesität der Sonnenstrahlung (GTI) sowie Windgeschwindigkeiten simuliert werden um "Was wäre wenn"-Prognosen für den Strompreis zu ermitteln.
