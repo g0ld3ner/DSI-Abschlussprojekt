@@ -42,7 +42,7 @@ def weather_blockwise(start_date: str) -> tuple[dict, dict]:
     df_loaded_block, load_metrics_block = BLOCKWISEwetter.load_and_forecast_blockwise(BLOCKWISEwetter.CONFIG, forecast_start_date=start_date)
     df_loaded_block.to_pickle(subpath + "df_blockwise_loaded_WETTER.pkl")
     # Metriken beider als Tuple[dict, dict]
-    return load_metrics_block #,metrics_block
+    return load_metrics_block  # metrics_block is unused
 
 def processing_weather(start:int=7, sun = None, wind = None ):  #per Stremlit DAtum als auswahl übergeben wind und sonne per regler 0 - 1.1
     start_date = current_day(start)
