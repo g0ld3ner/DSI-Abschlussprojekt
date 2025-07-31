@@ -13,7 +13,7 @@ subpath = "data/"  # alle Ergebnis .pkl müssen in den unterordner "data"
 def current_day(minus: int = 0) -> str:
     return (datetime.date.today() - datetime.timedelta(days=minus)).strftime("%Y-%m-%d %H:%M:%S")
 
-#########################
+######################### alles für die wettersimulation
 def prepare_for_weathermodel(start=None, sun=None, wind=None) -> pd.DataFrame:
     if start == None:
         start = current_day(7)
@@ -53,21 +53,16 @@ def processing_weather(start:int=7, sun = None, wind = None ):  #per Stremlit DA
     print("METRIK")
     # metric_tuple_single = train_single_step(start_date=start_date)
     return metric_tuple_block#, metric_tuple_single
-
-
-
 #########################
-####ich muss dass preparierete nutzen
 
+
+####ich muss dass preparierete nutzen
 def prepare_for_model() -> pd.DataFrame:
     df = pd.read_pickle(subpath + "df_for_model.pkl")
     df = weekend_and_winsorize(df=df)
     df = simulate_weather_data(df=df)
     pd.to_pickle(df,subpath + "ready_for_MODEL.pkl")
     return df
-
-
-
 
 
 def train_blockwise(start_date: str) -> tuple[dict, dict]:

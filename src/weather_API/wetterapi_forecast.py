@@ -3,65 +3,67 @@ import time
 import pandas as pd
 import openmeteo_requests
 import requests_cache
+import requests #nur zum testen
 from retry_requests import retry
 from locations import location as loc
 from pandasgui import show
 from bundeslaender_gewichte import sun_weights, wind_weights
 
-api_sleep_time = 10
+data_dir = "data/"
 
+api_sleep_time = 3
+
+cache_session = requests_cache.CachedSession(f"{data_dir}.forecast_cache", expire_after=3600)
+session = retry(cache_session, retries=5, backoff_factor=0.5)
 
 def get_weather_forecast_by_location(lat: float, lon: float) -> pd.DataFrame:
     print(f"Start Wetterdaten für {lat}, {lon}")
 
-    cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
-    retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-    openmeteo = openmeteo_requests.Client(session=retry_session)
-
-
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
-        "latitude": 52.52,
-        "longitude": 13.41,
-        "hourly": ["temperature_2m", "wind_speed_80m", "wind_speed_120m", "sunshine_duration",
-                   "global_tilted_irradiance"],
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": [
+            "temperature_2m", "wind_speed_80m", "wind_speed_120m",
+            "sunshine_duration", "global_tilted_irradiance"
+        ],
         "past_days": 2,
-        "forecast_days": 7,
+        "forecast_days": 8,
         "tilt": 35
     }
-    responses = openmeteo.weather_api(url, params=params)
 
-    # Process first location. Add a for-loop for multiple locations or weather models
-    response = responses[0]
-    print(f"Coordinates {response.Latitude()}°N {response.Longitude()}°E")
-    print(f"Elevation {response.Elevation()} m asl")
-    print(f"Timezone {response.Timezone()}{response.TimezoneAbbreviation()}")
-    print(f"Timezone difference to GMT+0 {response.UtcOffsetSeconds()} s")
+    start = time.time()
+    response = session.get(url, params=params)
+    dauer = time.time() - start
+    print(f"==> Antwort erhalten nach {dauer:.2f} Sekunden (Cache: {response.from_cache})")
 
-    # Process hourly data. The order of variables needs to be the same as requested.
-    hourly = response.Hourly()
-    hourly_temperature_2m = hourly.Variables(0).ValuesAsNumpy()
-    hourly_wind_speed_80m = hourly.Variables(1).ValuesAsNumpy()
-    hourly_wind_speed_120m = hourly.Variables(2).ValuesAsNumpy()
-    hourly_sunshine_duration = hourly.Variables(3).ValuesAsNumpy()
-    hourly_global_tilted_irradiance = hourly.Variables(4).ValuesAsNumpy()
+    if response.status_code != 200:
+        raise RuntimeError(f"API-Fehler: {response.status_code} {response.text[:200]}")
 
-    hourly_data = {"date": pd.date_range(
-        start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
-        end=pd.to_datetime(hourly.TimeEnd(), unit="s", utc=True),
-        freq=pd.Timedelta(seconds=hourly.Interval()),
-        inclusive="left"
-    )}
+    data = response.json()
 
-    hourly_data["temperature_2m"] = hourly_temperature_2m
-    hourly_data["wind_speed_80m"] = hourly_wind_speed_80m
-    hourly_data["wind_speed_120m"] = hourly_wind_speed_120m
-    hourly_data["sunshine_duration"] = hourly_sunshine_duration
-    hourly_data["global_tilted_irradiance"] = hourly_global_tilted_irradiance
+   # Echtheitsprüfung der Koordinaten
+    tol = 0.11
+    lat_api = data.get("latitude", -999)
+    lon_api = data.get("longitude", -999)
+    print(f"API-Koordinate: {lat_api:.5f}, {lon_api:.5f} (Angefragt: {lat:.5f}, {lon:.5f})")
+    if abs(lat_api - lat) > tol or abs(lon_api - lon) > tol: # Warnung bei abweichung ~>10km
+        print(f"⚠️ WARNUNG: API liefert abweichende Koordinate (> {tol}°)")
 
-    hourly_dataframe = pd.DataFrame(data=hourly_data)
-    return hourly_dataframe
+    # aus dem cache? -> no sleep
+    if not response.from_cache:
+        print(f"Neue API-Anfrage in {api_sleep_time} Sekunden...")
+        time.sleep(api_sleep_time)
+    else:
+        print("Cache-Treffer – kein Sleep.")    
+    
+    hourly = data["hourly"]
 
+    df = pd.DataFrame(hourly)
+    df["date"] = pd.to_datetime(df["time"])
+    df.drop("time", axis=1, inplace=True)
+    print("-"*30)
+    return df
 
 def get_dataframe_list(coordinates: list) -> list:
     dataframes = []
@@ -72,7 +74,7 @@ def get_dataframe_list(coordinates: list) -> list:
         print(f"Location Nr. {counter}")
         df = get_weather_forecast_by_location(lat, lon)
         dataframes.append(df)
-        time.sleep(api_sleep_time)
+        # time.sleep(api_sleep_time)
     return dataframes
 
 
@@ -81,7 +83,7 @@ def bl_df_dict(loc: dict) -> dict:
     bl_dict = {}
     for bl, coordinates in loc.items():
         counter += 1
-        print("------------------------")
+        print("."*30)
         print(f"Forecast")
         print(f"Bundesland Nr. {counter}")
         c = get_dataframe_list(coordinates)
@@ -309,181 +311,7 @@ def func_all_funcs_forecast() -> pd.DataFrame:
     return df9
 
 
-
-
-
-"""
 if __name__ == "__main__":
-    print("main läuft")
-    df_gesamt = func_all_funcs_forecast()
-    show(df_gesamt, block=True)
-"""
+    df = func_all_funcs_forecast()
+    # show(df, block=True)
 
-#test df1
-#def gui_inspect_bl_df_dict(bl_dict: dict):
-#    all_dfs = {}
-#    for bundesland, df_list in bl_dict.items():
-#        for i, df in enumerate(df_list):
-#            key = f"{bundesland} - Standort {i+1}"
-#            all_dfs[key] = df
-#    show(**all_dfs)
-#if __name__ == "__main__":
-#    df1 = bl_df_dict(loc)                                          #korrekt
-#    gui_inspect_bl_df_dict(df1)
-
-#test df2, df3, df4, df5, df6
-#def gui_inspect_bl_means_dict(bl_means_dict: dict):
-#    all_dfs = {}
-#    for bundesland, df in bl_means_dict.items():
-#        key = f"{bundesland} - Mittelwert"
-#        all_dfs[key] = df
-#    show(**all_dfs)
-
-#if __name__ == "__main__":
-#    df1 = bl_df_dict(loc)                                           #korrekt
-#    df2 = bl_means(df1)                                             #korrekt
-#    df3 = windspeed_mean_80m_120m(df2)                              #korrekt
-#    df4 = drop_unbrauchbare_spalten(df3)                            #korrekt
-#    df5 = add_gewichtung(df4, sun_weights, wind_weights)            #korrekt
-#    df6 = add_sun_wind_features(df5)                                #korrekt
-#
-#
-#    gui_inspect_bl_means_dict(df6)
-
-#Test df7
-
-"""
-def pruefe_combine_dfs_columnwise_sum(df_dict: dict, df_summed: pd.DataFrame):
-    test_col = "sunhours * gewichtung(sun)"
-
-    # Nimm beliebigen Zeitstempel zum Testen
-    zeitstempel = df_summed.index[0]
-
-    # Hole den erwarteten Summenwert durch manuelles Addieren aus den einzelnen BL-DataFrames
-    erwartete_summe = 0
-    for bl, df in df_dict.items():
-        if zeitstempel in df.index:
-            wert = df.loc[zeitstempel, test_col]
-            erwartete_summe += wert
-
-    berechnete_summe = df_summed.loc[zeitstempel, test_col]
-    print(f"[TEST] Zeit: {zeitstempel}")
-    print(f"Erwartet:  {erwartete_summe}")
-    print(f"Tatsächlich: {berechnete_summe}")
-
-    if abs(erwartete_summe - berechnete_summe) < 1e-6:
-        print("✅ Test erfolgreich: Summenwert stimmt.")
-    else:
-        print("❌ Test fehlgeschlagen: Summenwert stimmt nicht.")
-
-    # Optional: Weitere Plausibilitätstests
-    assert not df_summed.isnull().values.any(), "❌ Es gibt NaN-Werte im summierten DataFrame!"
-    print("✅ Keine NaNs im kombinierten DataFrame.")
-
-if __name__ == "__main__":
-    df1 = bl_df_dict(loc)
-    df2 = bl_means(df1)
-    df3 = windspeed_mean_80m_120m(df2)
-    df4 = drop_unbrauchbare_spalten(df3)
-    df5 = add_gewichtung(df4, sun_weights, wind_weights)
-    df6 = add_sun_wind_features(df5)
-    df7 = combine_dfs_columnwise_sum(df6)
-    # Testfunktion aufrufen:
-    pruefe_combine_dfs_columnwise_sum(df6, df7)                           #korrekt
-    # DataFrame anzeigen
-    show(df7, block=True)
-"""
-
-"""
-def pruefe_combine_dfs_columnwise_mean(df_dict: dict, df_mean: pd.DataFrame):
-    test_col = "sunhours * gewichtung(sun)"
-
-    # Beispiel-Zeitstempel
-    zeitstempel = df_mean.index[0]
-
-    # Erwarteter Mittelwert (manuell berechnet)
-    werte = []
-    for bl, df in df_dict.items():
-        if zeitstempel in df.index:
-            werte.append(df.loc[zeitstempel, test_col])
-
-    if not werte:
-        print(f"⚠️ Kein Wert vorhanden für Zeitstempel {zeitstempel} in den Einzeldaten.")
-        return
-
-    erwarteter_mittelwert = sum(werte) / len(werte)
-    berechneter_mittelwert = df_mean.loc[zeitstempel, test_col]
-
-    print(f"[TEST] Zeit: {zeitstempel}")
-    print(f"Erwartet:  {erwarteter_mittelwert}")
-    print(f"Tatsächlich: {berechneter_mittelwert}")
-
-    if abs(erwarteter_mittelwert - berechneter_mittelwert) < 1e-6:
-        print("✅ Test erfolgreich: Mittelwert stimmt.")
-    else:
-        print("❌ Test fehlgeschlagen: Mittelwert stimmt nicht.")
-
-    # Zusätzliche Plausibilitätsprüfung
-    assert not df_mean.isnull().values.any(), "❌ Es gibt NaN-Werte im Mittelwert-DataFrame!"
-    print("✅ Keine NaNs im kombinierten Mittelwert-DataFrame.")
-
-if __name__ == "__main__":
-    df1 = bl_df_dict(loc)
-    df2 = bl_means(df1)
-    df3 = windspeed_mean_80m_120m(df2)
-    df4 = drop_unbrauchbare_spalten(df3)
-    df5 = add_gewichtung(df4, sun_weights, wind_weights)
-    df6 = add_sun_wind_features(df5)
-    df8 = combine_dfs_columnwise_mean(df6)
-    # Testfunktion aufrufen
-    pruefe_combine_dfs_columnwise_mean(df6, df8)
-
-    # DataFrame anzeigen
-    show(df8, block=True)
-"""
-
-"""
-def pruefe_combine_df(df_sum: pd.DataFrame, df_mean: pd.DataFrame, df_combined: pd.DataFrame):
-    spalten_ueberschreiben = [
-        "sunhours * gewichtung(sun)",
-        "GTI * gewichtung(sun)",
-        "windspeed * gewichtung(wind)"
-    ]
-
-    for spalte in spalten_ueberschreiben:
-        unterschied = (df_combined[spalte] - df_sum[spalte]).abs().max()
-        if unterschied < 1e-6:
-            print(f"✅ Spalte '{spalte}' korrekt überschrieben mit Summenwerten.")
-        else:
-            print(f"❌ Spalte '{spalte}' wurde NICHT korrekt überschrieben!")
-            print(f"Maximaler Unterschied: {unterschied}")
-
-    # Prüfung auf Gleichheit anderer Spalten mit dem Mittelwert-DF
-    for spalte in df_mean.columns:
-        if spalte not in spalten_ueberschreiben:
-            unterschied = (df_combined[spalte] - df_mean[spalte]).abs().max()
-            if unterschied < 1e-6:
-                print(f"✅ Spalte '{spalte}' korrekt vom Mittelwert übernommen.")
-            else:
-                print(f"❌ Spalte '{spalte}' unterscheidet sich vom Mittelwert!")
-                print(f"Maximaler Unterschied: {unterschied}")
-
-
-if __name__ == "__main__":
-    df1 = bl_df_dict(loc)
-    df2 = bl_means(df1)
-    df3 = windspeed_mean_80m_120m(df2)
-    df4 = drop_unbrauchbare_spalten(df3)
-    df5 = add_gewichtung(df4, sun_weights, wind_weights)
-    df6 = add_sun_wind_features(df5)
-    df7 = combine_dfs_columnwise_sum(df6)
-    df8 = combine_dfs_columnwise_mean(df5)
-    df9 = combine_df_angepasst(df7,df8)
-
-    # Testfunktion
-    pruefe_combine_df(df7, df8, df9)
-
-    # Ergebnis anzeigen
-    show(df9, block=True)
-
-"""

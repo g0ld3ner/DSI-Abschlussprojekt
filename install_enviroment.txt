@@ -1,0 +1,46 @@
+# Anleitung: Umgebung für das Projekt einrichten
+
+Zwei Wege stehen zur Verfügung:
+
+----------------------------------------
+1. Installation mit Conda 
+----------------------------------------
+
+- Voraussetzungen: Anaconda oder Miniconda installiert
+
+Schritte:
+1. Projektverzeichnis öffnen:
+     cd /PFAD/ZUM/PROJEKT
+
+2. Umgebung erstellen:
+     conda env create -f environment.yml
+
+3. Umgebung aktivieren:
+     conda activate strompreis-app
+
+----------------------------------------
+2. Installation mit pip
+----------------------------------------
+
+- Voraussetzungen: Python 3.x installiert
+
+Schritte:
+1. Projektverzeichnis öffnen:
+     cd /PFAD/ZUM/PROJEKT
+
+2. Virtuelle Umgebung erstellen und aktivieren:
+     python -m venv .venv
+     # Windows:
+     .venv\Scripts\activate
+     # Linux/macOS:
+     source .venv/bin/activate
+
+3. Abhängigkeiten installieren:
+     pip install -r requirements.txt
+
+----------------------------------------
+
+**Beide Varianten werden gepflegt und sind funktional äquivalent.**
+Bitte entscheide dich für einen Weg — beide sind für das Projekt unterstützt.
+
+Stand: Juli 2025

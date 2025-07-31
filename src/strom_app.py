@@ -674,7 +674,10 @@ def main():
     """
     Einstiegspunkt der App und Navigationsleiste
     """
-    st.sidebar.title("Prädiktiven Analyse von Strompreisen basierend auf simulierten und berichtsbasierten Wetterdaten")
+    st.sidebar.subheader("Prädiktiven Analyse von Strompreisen basierend auf simulierten und berichtsbasierten Wetterdaten")
+    st.sidebar.info("aktuell müssen die Daten per API sowie die Modellberechnung noch manuell angestoßen werden.  \n" \
+        " -> src/weather_API/wetterapi_main.py ausführen um die aktuellen Daten aus der API zu ziehen (~ 30 Minuten)  \n" \
+        " -> src/PROCESSING.py ausführen um die Prognosen zu erstellen (je nach Hardware einige Minuten)")
     nav = [
         "Stromdaten anzeigen",
         "Wetter Locations",
@@ -703,7 +706,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    """
-    Starten der App mit: "streamlit run src/strom_app.py"
-    """
     pass

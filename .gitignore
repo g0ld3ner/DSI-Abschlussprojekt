@@ -1,0 +1,17 @@
+#nur für meine environment wichtig
+pip_requirements.txt
+conda_requirements.txt
+
+#caches
+*cache.sqlite
+
+#ungenutzt oder in entwicklung
+src/weather_API/TEST.py
+src/weather_API/wetterapi_pipeline.py
+
+# alte Datein eingeleitet mit OLD_
+OLD_*
+
+# unnötige (automatisch erstellte) Datein
+saved_models/
+__pycache__/

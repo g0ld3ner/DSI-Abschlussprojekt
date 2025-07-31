@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import datetime
 import os
 
+data_dir = "data/"
+
 ##########################
 #   GLOBAL CONFIG        #
 ##########################
@@ -73,7 +75,7 @@ CONFIG = {
 #   DATA LOADING & PREP  #
 ##########################
 def load_and_prepare_data(config):
-    df = pd.read_pickle("ready_for_MODEL.pkl")
+    df = pd.read_pickle(f"{data_dir}ready_for_MODEL.pkl")
     df = df.copy()
     df = df.iloc[50:] # ersten 50 zeilen entfernen
     df.fillna(0, inplace=True) #NaNs durch 0 ersetzen

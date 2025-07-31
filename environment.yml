@@ -1,0 +1,26 @@
+# for conda enjoyers, to create the enviroment: "conda env create -f environment.yml"
+
+name: strompreis-app
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - matplotlib
+  - numpy
+  - pandas
+  # - pandasgui   # verursacht Probleme mit Docker, ist nicht erforderlich, daher auskommentiert
+  - requests
+  - scipy
+  - scikit-learn
+  - streamlit
+  - folium
+  - plotly
+  - openpyxl   # wird von Pandas genutzt, um Excel-Dateien zu öffnen
+  - pip
+  - pip:
+      - torch
+      - streamlit_folium
+      - retry_requests
+      - requests_cache
+      - openmeteo_requests
