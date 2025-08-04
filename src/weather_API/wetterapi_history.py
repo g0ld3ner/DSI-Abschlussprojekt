@@ -2,24 +2,25 @@ from datetime import datetime, timedelta, timezone
 import time
 import pickle
 import pandas as pd
-import openmeteo_requests
+import openmeteo_requests # wird nicht mehr gebraucht
 import requests_cache
 from retry_requests import retry
 from bundeslaender_gewichte import sun_weights, wind_weights
-from locations import location as loc
+from locations import location
+from collections import defaultdict
 from pandasgui import show
 
 data_dir = "data/"
 
 api_sleep_time = 25
 
-cache_session = requests_cache.CachedSession(f"{data_dir}.history_cache", expire_after=604800)
+cache_session = requests_cache.CachedSession(f"{data_dir}.history_cache", expire_after=21600) #6h
 session = retry(cache_session, retries=5, backoff_factor=0.5)
 
 def current_day(minus: int = 0) -> datetime:
     return (datetime.now(timezone.utc) - timedelta(days=minus))
 
-def x_days_back(date: datetime, x: int = 400) -> datetime:
+def x_days_back(date: datetime, x: int = 400) -> datetime: # Tage standardmäßig (None) abgefragt werden
     return date - timedelta(days=x)
 
 def date_to_string(date: datetime) -> str: #die API braucht ja einen String
@@ -31,11 +32,15 @@ def get_weather_by_location(lat: float, lon: float, start_date: str = None, end_
     if end_date is None:
         ### Die archive-API hängt immer 2 Tage hinterher, daher müssen diese 2 Tage aus der Forecast API aufgefüllt werden (daher minus=2)
         end_date = current_day(minus=2) # ob man das später nicht eleganter lösen kann mit der minus 2 ???
-        end_date_str = date_to_string(end_date) 
+        end_date_str = date_to_string(end_date)
+    else:
+        end_date_str = end_date
     if start_date is None:
         start_date = x_days_back(end_date)
         start_date_str = date_to_string(start_date)
-
+    else:
+        start_date_str = start_date
+        
     url = "https://archive-api.open-meteo.com/v1/archive"
     params = {
         "latitude": lat,
@@ -51,16 +56,14 @@ def get_weather_by_location(lat: float, lon: float, start_date: str = None, end_
     start_zeitmessung = time.time()
     response = session.get(url, params=params)
     dauer = time.time() - start_zeitmessung
-    print(f"==> Antwort erhalten nach {dauer:.2f} Sekunden (Cache: {response.from_cache})")
-
-    
+    print(f"Antwort erhalten nach {dauer:.2f} Sekunden => (Cache: {response.from_cache})")
 
     if response.status_code != 200:
         raise RuntimeError(f"API-Fehler: {response.status_code} {response.text[:200]}")
 
     data = response.json()
 
-    # Echtheitsprüfung der Koordinaten (wie im Forecast)
+    # Abweichung der Koordinaten prüfen (wie im Forecast)
     tol = 0.11
     lat_api = data.get("latitude", -999)
     lon_api = data.get("longitude", -999)
@@ -76,52 +79,42 @@ def get_weather_by_location(lat: float, lon: float, start_date: str = None, end_
         print("Cache-Treffer – kein Sleep.")
 
     hourly = data["hourly"]
-
     df = pd.DataFrame(hourly)
     df["date"] = pd.to_datetime(df["time"])
     df.drop("time", axis=1, inplace=True)
     print("-"*30)
     return df
 
-def get_dataframe_list(coordinates: list, start_day: str = None, end_day: str = None) -> list:
-    dataframes = []
+def get_dataframe_dict(loc:dict, start_date:str, end_date:str) -> dict[str, list[pd.DataFrame]]:
+    """
+    Erstellt ein Dictionary von DataFrames (key: Bundesland, value: DF mit den API-Daten je Location)
+    """
+    df_dict = defaultdict(list) #dict values per default auf list
     counter = 0
-    for lat, lon in coordinates:
-        counter += 1
-        print(f"Historische daten")
-        print(f"Location Nr. {counter}")
-        df = get_weather_by_location(lat, lon, start_day, end_day)
-        dataframes.append(df)
-        # time.sleep(api_sleep_time) # wird jetzt in der get_weather... dynamisch geregelt
-    return dataframes
-
-
-def bl_df_dict(loc: dict) -> dict:
-    counter = 0
-    bl_dict = {}
-    for bl, coordinates in loc.items():
+    for bl, coord in loc.items():
         counter += 1
         print("."*30)
-        print(f"Historische daten")
-        print(f"Bundesland Nr. {counter}")
-        c = get_dataframe_list(coordinates)
-        bl_dict[bl] = c
-    return bl_dict
+        print(f"Daten für Bundesland {counter} von 17")
+        for lat, lon in coord:
+            df = get_weather_by_location(lat, lon, start_date, end_date)
+            df_dict[bl].append(df)
+    return df_dict
 
+def bl_means(bl_dict:dict[str, list[pd.DataFrame]]) -> dict[str, pd.DataFrame]:
+    """
+    Mittelwert der DataFrames für jedes Bundesland nach Datum.
+    --> Dict mit BL als Key und ein aggregiertes (mean) DF als Value
+    """
+    return {bl: pd.concat(dfs, axis=0).groupby('date').mean() for bl, dfs in bl_dict.items()}
 
-def bl_means(bl_dict: dict) -> dict:
-    bl_mean_dict = {}
-    for bl, liste in bl_dict.items():
-        df = pd.concat(liste)
-        df_mean = df.groupby("date").mean()
-        bl_mean_dict[bl] = df_mean
-    return bl_mean_dict
-
-
-def add_gewichtung(dataframes: dict, sun_weights: dict, wind_weights: dict) -> dict:
-    neue_dataframes = {}
-    for bundesland in dataframes:
-        df = dataframes[bundesland].copy()
+def add_features(dfs:dict[str,pd.DataFrame], sun_weights:dict[str,dict[str,float]], wind_weights:dict[str,dict[str,float]]
+                ) -> dict[str,pd.DataFrame]:
+    """
+    Gewichtungen für Sonnen- und Windwerte sowie daraus berechnete Features zu den DataFrames der Bundesländer hinzufügen.
+    """
+    new_dfs = {}
+    for bundesland in dfs:
+        df = dfs[bundesland].copy()
         sun_spalte = []
         wind_spalte = []
         for i in range(len(df)):
@@ -132,131 +125,62 @@ def add_gewichtung(dataframes: dict, sun_weights: dict, wind_weights: dict) -> d
             wind_spalte.append(wind_wert)
         df["sun_weight"] = sun_spalte
         df["wind_weight"] = wind_spalte
-        neue_dataframes[bundesland] = df
-    return neue_dataframes
-
-
-def add_sun_wind_features(dataframes: dict) -> dict:
-    neue_dataframes = {}
-    for bundesland in dataframes:
-        df = dataframes[bundesland].copy()
         df["sunhours * gewichtung(sun)"] = df["sunshine_duration"] * df["sun_weight"]
         df["GTI * gewichtung(sun)"] = df["global_tilted_irradiance"] * df["sun_weight"]
         df["windspeed * gewichtung(wind)"] = df["wind_speed_100m"] * df["wind_weight"]
-        neue_dataframes[bundesland] = df
-    return neue_dataframes
+        new_dfs[bundesland] = df
+    # first_bl, first_df = next(iter(new_dfs.items()))
+    # print(f"werte für {first_bl}")
+    # show(first_df)
+    return new_dfs
 
-def combine_dfs_columnwise_sum(dataframes: dict) -> pd.DataFrame:
-    """
-    Nimmt ein Dictionary von DataFrames entgegen, die alle dieselben Spaltennamen besitzen.
-    Für jede Spalte wird zeilenweise die Summe aus den entsprechenden Spalten aller DataFrames berechnet.
-
-    Parameter:
-        dataframes: dict, wobei die Keys z. B. Namen (wie Bundesländer o.ä.) sind und die zugehörigen DataFrames enthalten.
-
-    Rückgabe:
-        Ein DataFrame mit denselben Spaltennamen, in dem jede Spalte die zeilenweise Summe
-        der entsprechenden Spalten aus den übergebenen DataFrames enthält.
-    """
-    if not dataframes:
-        return pd.DataFrame()
-
-    # Holen der Spaltennamen aus dem ersten DataFrame im Dictionary
-    first_df = next(iter(dataframes.values()))
+def combine_all_dfs(dfs:dict[str, pd.DataFrame]) -> pd.DataFrame:
+    # Spaltennamen aus dem ersten DataFrame im Dictionary
+    first_df = next(iter(dfs.values()))
     columns = first_df.columns
-
-    # Überprüfen, ob alle DataFrames dieselben Spalten haben
-    for key, df in dataframes.items():
+    # Überprüfen, ob alle DataFrames dieselben Spalten(namen) haben
+    for key, df in dfs.items():
         if not df.columns.equals(columns):
             raise ValueError(f"DataFrame '{key}' hat andere Spaltennamen als erwartet.")
+    
+    sum_cols = ["sunhours * gewichtung(sun)", "GTI * gewichtung(sun)", "windspeed * gewichtung(wind)", "sun_weight", "wind_weight"]
 
-    result = pd.DataFrame()
+    concated_df = pd.concat(dfs, axis=1) #Multiindex = Dict-Key (level=0)
+    grouped = concated_df.T.groupby(level=1) #Spaltennamen (level=1) 
+    sum_df  = grouped.sum().T[sum_cols]   
+    mean_df = grouped.mean().T.drop(columns=sum_cols)
+    combined_df = pd.concat([mean_df, sum_df], axis=1)[columns]  
+    # for col in columns:
+    #     col_list = [df[col] for df in dfs.values()]
+    #     concat_cols = pd.concat(col_list, axis=1)
+    #     if col in sum_cols:
+    #         combined_df[col] = concat_cols.sum(axis=1)
+    #     else:
+    #         combined_df[col] = concat_cols.mean(axis=1)
+    #show(combined_df)
+    return combined_df
 
-    # Für jede Spalte aus den DataFrames:
-    for col in columns:
-        # Extrahiere die Spalte 'col' aus jedem DataFrame
-        series_list = [df[col] for df in dataframes.values()]
-        # Zusammenführen der Series über den Index (outer join, damit alle Zeitstempel erhalten bleiben)
-        merged = pd.concat(series_list, axis=1)
-        # Berechne die zeilenweise Summe (NaN werden dabei standardmäßig ignoriert)
-        result[col] = merged.sum(axis=1)
+def add_source(df:pd.DataFrame) -> pd.DataFrame:
+    df["Quelle"] = "history"
+    return df
 
-    return result
-
-
-def combine_dfs_columnwise_mean(dataframes: dict) -> pd.DataFrame:
-    """
-    Nimmt ein Dictionary von DataFrames entgegen, die alle dieselben Spaltennamen besitzen.
-    Für jede Spalte wird zeilenweise der Mittelwert aus den entsprechenden Spalten aller DataFrames berechnet.
-
-    Parameter:
-        dataframes: dict, wobei die Keys z. B. Namen (wie Bundesländer o.ä.) sind und die zugehörigen DataFrames enthalten.
-
-    Rückgabe:
-        Ein DataFrame mit denselben Spaltennamen, in dem jede Spalte den zeilenweisen Mittelwert
-        der entsprechenden Spalten aus den übergebenen DataFrames enthält.
-    """
-    if not dataframes:
-        return pd.DataFrame()
-
-    # Holen der Spaltennamen aus dem ersten DataFrame im Dictionary
-    first_df = next(iter(dataframes.values()))
-    columns = first_df.columns
-
-    # Überprüfen, ob alle DataFrames dieselben Spalten haben
-    for key, df in dataframes.items():
-        if not df.columns.equals(columns):
-            raise ValueError(f"DataFrame '{key}' hat andere Spaltennamen als erwartet.")
-
-    result = pd.DataFrame()
-
-    # Für jede Spalte aus den DataFrames:
-    for col in columns:
-        # Extrahiere die Spalte 'col' aus jedem DataFrame
-        series_list = [df[col] for df in dataframes.values()]
-        # Zusammenführen der Series über den Index (outer join, damit alle Zeitstempel erhalten bleiben)
-        merged = pd.concat(series_list, axis=1)
-        # Berechne den zeilenweisen Mittelwert (NaN werden dabei standardmäßig ignoriert)
-        result[col] = merged.mean(axis=1)
-
-    return result
-
-
-def combine_df(dataframe_mean: pd.DataFrame, dataframe_sum: pd.DataFrame) -> pd.DataFrame:
-    df_m = dataframe_mean.copy()
-    df_s = dataframe_sum.copy()
-
-    spalten_ueberschreiben = ["sunhours * gewichtung(sun)", "GTI * gewichtung(sun)", "windspeed * gewichtung(wind)"]
-
-    for spalte in spalten_ueberschreiben:
-        df_m[spalte] = df_s[spalte]
-
-    return df_m
-
-
-def func_all_funcs_history() -> pd.DataFrame:
-    bl_dict = bl_df_dict(loc)
-    print("start bl_df_dict...")
+def func_all_funcs_history(start_date:str=None, end_date:str=None) -> pd.DataFrame:
+    print("Dict mit DF's aller Locations wird erstellt...")
+    bl_dict = get_dataframe_dict(location, start_date, end_date)
+    print("Starte Preprocessing:")
     bl_mean_dict = bl_means(bl_dict)
-    print("means berechnen fertig...")
-    df_gewichte = add_gewichtung(bl_mean_dict, sun_weights, wind_weights)
-    print("gewichtung append fertig...")
-    df_features = add_sun_wind_features(df_gewichte)
-    print("features berechnen fertig...")
-    df_de_gesamt_sum = combine_dfs_columnwise_sum(df_features)
-    print("DF Summen fertig....")
-    df_de_gesamt_mean = combine_dfs_columnwise_mean(df_features)
-    print("DF means fertig....")
-    df_gesamt_dl = combine_df(df_de_gesamt_mean, df_de_gesamt_sum)
-    print("DF Gesamt summen & means fertig....")
-    ##### IDEE ###### das DF als pkl speichern, wenn es die pkl gibt, letztes datum nehmen,
-    ########### den prozess ab dem datum bis heute laufen lassen, DF's zusammenführen
-    return df_gesamt_dl
-
+    print("Means über die BL berechnen -> fertig")
+    df_features = add_features(bl_mean_dict, sun_weights, wind_weights)
+    print("Features hinzufügen -> fertig")
+    df_combined = combine_all_dfs(df_features)
+    print("DF's zusammenfügen -> fertig")
+    df_final = add_source(df_combined)
+    print("Quelle hinzufügen -> fertig")
+    return df_final
 
 if __name__ == "__main__":
     df = func_all_funcs_history()
-    # show(df, block=True)
+    show(df, block=True)
 
 
 

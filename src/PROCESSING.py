@@ -16,7 +16,7 @@ def current_day(minus: int = 0) -> str:
 ######################### alles für die wettersimulation
 def prepare_for_weathermodel(start=None, sun=None, wind=None) -> pd.DataFrame:
     if start == None:
-        start = current_day(7)
+        start = current_day(7) #8
     if sun == None:
         sun = 0.6
     if wind == None:
@@ -111,13 +111,13 @@ def processing_all(start:int=9):
 
 
 if __name__ == '__main__':
-########
-    test_df = prepare_for_model()
-    print(test_df.info())
-    print("="*50)
-########
+# ########
+#     test_df = prepare_for_model()
+#     print(test_df.info())
+#     print("="*50)
+# ########
     # start_date = "2025-04-01 00:00:00"
-    start_date = current_day(8)
+    start_date = current_day(8) #8
     print(start_date)
     print("="*50)
 ########

@@ -1,33 +1,29 @@
 # Starten der App mit: "streamlit run src/strom_app.py"
 
-# -----------------
-# Standard-Libraries
-# -----------------
 import datetime
 import os
 
-# -----------------
-# Third-Party
-# -----------------
 import streamlit as st
-from streamlit_folium import st_folium
-import folium
+import pydeck as pdk
+import matplotlib.colors as mc
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
-from sklearn.metrics import root_mean_squared_error, mean_absolute_error
+from sklearn.metrics import root_mean_squared_error, mean_absolute_error,  mean_squared_error,  r2_score
 
-# -----------------
-# Eigene Module
-# -----------------
+### Eigene Module
 import locations
 import PROCESSING
 
-# -----------------
-# Funktionen
-# -----------------
+### Streamlit config
+st.set_page_config(
+    page_title="Strompreis-Prognose",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+### Funktionen
 def lade_und_normalisiere_mehrere_daten(dateien: list, spalten: list) -> list:
     """
     Lädt mehrere Pickle-Dateien als DataFrames, sorgt für konsistenten Zeitindex,
@@ -42,7 +38,7 @@ def lade_und_normalisiere_mehrere_daten(dateien: list, spalten: list) -> list:
             df.index = df.index.tz_localize("Europe/Berlin", nonexistent="shift_forward", ambiguous="NaT")
         else:
             df.index = df.index.tz_convert("Europe/Berlin")
-        # 🔐 Duplikate im Index entfernen
+        # Duplikate im Index entfernen
         if not df.index.is_unique:
             df = df[~df.index.duplicated(keep='first')]
         df = df[[spalte]]
@@ -57,10 +53,8 @@ def lade_und_normalisiere_mehrere_daten(dateien: list, spalten: list) -> list:
 ### 1. Stromdaten
 def sektion_stromdaten():
     """Zeigt verschiedene Stromdaten-Visualisierungen basierend auf Dateien im docs-Ordner."""
-    st.subheader("🔍 Aktuelle Stromdaten")
-
-    # 1️⃣ Diagramm: Nettostromerzeugung Q2 2025
-    st.markdown("### 🔌 Öffentliche Nettostromerzeugung – Q2 2025")
+    st.subheader("Kennzahlen aus 2025")
+    # 1. Diagramm: Nettostromerzeugung Q2 2025
     st.markdown(
         "Das folgende Balkendiagramm zeigt die öffentliche Nettostromerzeugung in Deutschland im zweiten Quartal 2025 "
         "gemessen in Gigawattstunden (GWh). Mit einem Blick lässt sich erkennen, welche Technologien "
@@ -94,7 +88,7 @@ def sektion_stromdaten():
             showlegend=False,
             xaxis_tickangle=-45,
             yaxis_title="Energie (GWh)",
-            title_x=0.5,
+            title_x=0,
             bargap=0.3
         )
         st.plotly_chart(fig, use_container_width=True)
@@ -103,58 +97,8 @@ def sektion_stromdaten():
     except Exception as e:
         st.error(f"⚠️ Fehler beim Verarbeiten der Stromdatei: {e}")
 
-    # 2️⃣ Diagramm: EE-Anteil Quartalsweise
-    st.markdown("### ♻️ Anteil Erneuerbarer Energien (Quartalsvergleich)")
-    st.markdown("Kurzer Vergleich des EE-Anteils an öffentlicher Nettostromerzeugung und Last im Jahr 2025.")
-    try:
-        ee_file = "docs/anteil_erneuerbare_2025.xlsx"
-        df_ee = pd.read_excel(ee_file, sheet_name=0, header=None)
-        quartale = df_ee.iloc[2:5, 0].values
-        anteil_last = df_ee.iloc[2:5, 1].values
-        anteil_erzeugung = df_ee.iloc[2:5, 2].values
-        df_plot_ee = pd.DataFrame({
-            "Quartal": list(quartale) * 2,
-            "Anteil (%)": list(anteil_last) + list(anteil_erzeugung),
-            "Kategorie": ["EE an der Last"] * 3 + ["EE an der Erzeugung"] * 3
-        })
-        fig_ee = px.bar(
-            df_plot_ee,
-            x="Quartal",
-            y="Anteil (%)",
-            color="Kategorie",
-            text="Anteil (%)",
-            barmode="group",
-            title="📊 Quartalsweiser Anteil Erneuerbarer Energien (2025)"
-        )
-        fig_ee.update_traces(
-            texttemplate="%{text:.1f} %",
-            hoverinfo="skip",
-            marker_line_width=1,
-            marker_line_color="white"
-        )
-        fig_ee.update_layout(
-            title_x=0.5,
-            showlegend=True
-        )
-        st.plotly_chart(fig_ee, use_container_width=True)
-    except FileNotFoundError:
-        st.error("❌ Datei 'anteil_erneuerbare_2025.xlsx' nicht gefunden.")
-    except Exception as e:
-        st.error(f"⚠️ Fehler beim Verarbeiten der EE-Datei: {e}")
-
-    # 3️⃣ Diagramm: Installierte Netto-Leistung (SVG)
-    st.markdown("### ⚡ Installierte Netto-Leistung zur Stromerzeugung in Deutschland")
-    st.markdown("Entwicklung der installierten Kraftwerksleistung pro Energieträger (2002–2024).")
-    try:
-        st.image("docs/installierte_leistung_stromerzeugung.svg")
-    except FileNotFoundError:
-        st.error("❌ SVG-Datei 'installierte_leistung_stromerzeugung.svg' nicht gefunden.")
-    except Exception as e:
-        st.error(f"⚠️ Fehler beim Laden der SVG-Datei: {e}")
-
-    # 4️⃣ Diagramm: Jährlicher EE-Anteil ab 2015
-    st.markdown("### 🌱 Jährlicher Anteil Erneuerbarer Energien")
-    st.markdown("Darstellung des EE-Anteils an öffentlicher Nettostromerzeugung und Last von 2015 bis 2025.")
+    # 2. Diagramm: Jährlicher EE-Anteil ab 2015
+    st.markdown("Darstellung des Anteils Erneuerbarer Energien an der öffentlicher Nettostromerzeugung und Last von 2015 bis 2025.")
     try:
         file_ee_year = "docs/ee_anteil_jaehrlich_2015_2025.xlsx"
         df_year = pd.read_excel(file_ee_year, sheet_name=0, header=None)
@@ -173,7 +117,7 @@ def sektion_stromdaten():
             color="Kategorie",
             barmode="group",
             text="Anteil (%)",
-            title="📈 EE-Anteil an öffentlicher Stromerzeugung und Last (2015–2025)"
+            title="EE-Anteil an öffentlicher Stromerzeugung und Last (2015–2025)"
         )
         fig_year.update_traces(
             texttemplate="%{text:.1f} %",
@@ -182,7 +126,7 @@ def sektion_stromdaten():
             marker_line_color="white"
         )
         fig_year.update_layout(
-            title_x=0.5
+            title_x=0
         )
         st.plotly_chart(fig_year, use_container_width=True)
     except FileNotFoundError:
@@ -190,35 +134,94 @@ def sektion_stromdaten():
     except Exception as e:
         st.error(f"⚠️ Fehler beim Verarbeiten der Datei für Jahresvergleich: {e}")
 
+    # 3. Diagramm: Installierte Netto-Leistung (SVG)
+    st.markdown("Entwicklung der installierten Kraftwerksleistung pro Energieträger (2002–2024).")
+    try:
+        st.image("docs/installierte_leistung_stromerzeugung.svg")
+    except FileNotFoundError:
+        st.error("❌ SVG-Datei 'installierte_leistung_stromerzeugung.svg' nicht gefunden.")
+    except Exception as e:
+        st.error(f"⚠️ Fehler beim Laden der SVG-Datei: {e}")
+
+    
+
 ### 2. Orte
 def sektion_wetter_locations():
     """Zeigt eine interaktive Karte aller Wetterstandorte in Deutschland."""
-    st.subheader("🗺️ Wetter-Standorte in Deutschland")
+    st.subheader("Standorte in Deutschland")
     st.markdown(
-        "Diese interaktive Karte zeigt die Standorte, für die Wetterdaten generiert wurden. "
+        "Die Karte zeigt die Standorte, für die Wetterdaten ermittelt werden.  \n"
+        "Über alle Standorte eines Bundeslandes hinweg werden die Durschnittswerte "
+        "ermittelt und anhand der anteiligen Erzeugung je Bundesland entsprechende Gewichtungen für die Modell-Prognosen vorgenommen.  \n"
+        "  \n"
         "Die Punkte sind nach Bundesländern gruppiert und farblich gekennzeichnet."
     )
+
     try:
-        m = folium.Map(location=[51.1657, 10.4515], zoom_start=6, control_scale=True)
+        # 1) Daten in ein DataFrame packen
+        rows = []
         for state, coords in locations.location.items():
-            color = locations.state_colors.get(state, "blue")
+            color_str = locations.state_colors.get(state, "blue")
+            # Farbstring (Name oder Hex) in RGBA umwandeln
+            rgb = mc.to_rgb(color_str)  
+            rgba = [int(c * 255) for c in rgb] + [160]  # A=160 für leichte Transparenz
             for lat, lon in coords:
-                folium.CircleMarker(
-                    location=[lat, lon],
-                    radius=6,
-                    tooltip=state,
-                    color=color,
-                    fill=True,
-                    fill_color=color,
-                    fill_opacity=0.7
-                ).add_to(m)
-        st_folium(m, width=800, height=500)
+                rows.append({
+                    "lat": lat,
+                    "lon": lon,
+                    "state": state,
+                    "color": rgba
+                })
+        df_coords = pd.DataFrame(rows)
+
+        # 2) ScatterplotLayer anlegen
+        layer = pdk.Layer(
+            "ScatterplotLayer",
+            df_coords,
+            pickable=True,
+            get_position="[lon, lat]",
+            get_fill_color="color",
+            get_radius=8000,
+            auto_highlight=True
+        )
+
+        # 3) Kamera-Initialisierung
+        view_state = pdk.ViewState(
+            latitude=51.1657,
+            longitude=10.4515,
+            zoom=5,
+            bearing=0,
+            pitch=0
+        )
+
+        # 4) Deck zusammenbauen und rendern
+        deck = pdk.Deck(
+            layers=[layer],
+            initial_view_state=view_state,
+            tooltip={"text": "{state}"}
+        )
+        st.pydeck_chart(deck)
+
     except Exception as e:
         st.error(f"⚠️ Fehler beim Erstellen der Wetter-Standorte-Karte: {e}")
 
+    #########
+
+    st.markdown("Anteile an der Erzeugung nach Bundesländern (Wind und Solar).  \n"
+                "Diese sind die Grundlage für die Gewichtung der Bundesländer.")
+    try:
+        st.image("docs/wind_solar_leistung_2025.svg")
+    except FileNotFoundError:
+        st.error("❌ SVG-Datei 'wind_solar_leistung_2025.svg' nicht gefunden.")
+    except Exception as e:
+        st.error(f"⚠️ Fehler beim Laden der SVG-Datei: {e}")
+
+      
+
 ### 3. Echtzeit Wetter
 def sektion_live_wetter():
-    st.subheader("🌤️ Live Wetterdaten (Ø aller BL in DEU)")
+    st.subheader("Wetterdaten (Ø aller Bundesländer)")
+    st.text("Hier werden Daten der vergangenen Woche, sowie die Vorhersagen der nächsten Woche angezeigt")
 
     try:
         df_wetter = pd.read_pickle("data/df_for_model.pkl")
@@ -226,147 +229,120 @@ def sektion_live_wetter():
         st.error("❌ Datei 'df_for_model.pkl' nicht gefunden!")
         return
 
-    # Zeitzone hinzufügen (DST-Probleme abfangen)
+    # Zeitzone korrekt setzen (falls noch tz-naiv)
     if df_wetter.index.tz is None:
-        df_wetter.index = df_wetter.index.tz_localize(
-            "Europe/Berlin",
-            nonexistent="shift_forward",
-            ambiguous="NaT"
+        df_wetter.index = (
+            df_wetter.index
+                     .tz_localize("UTC")            # falls ursprünglich UTC
+                     .tz_convert("Europe/Berlin")
         )
 
-    heute = datetime.date.today()
-    tz = df_wetter.index.tz
-    start = datetime.datetime.combine(heute, datetime.time.min).replace(tzinfo=tz)
-    jetzt = datetime.datetime.now(tz=tz).replace(minute=0, second=0, microsecond=0)
+    # 1) Transition-Punkt
+    transition = df_wetter.loc[df_wetter["Quelle"] == "forecast"].index.min()
 
-    df_tag = df_wetter[(df_wetter.index >= start) & (df_wetter.index <= jetzt)]
+    # 2) Fenster ±7 Tage
+    window_start = transition - pd.Timedelta(days=7)
+    window_end   = transition + pd.Timedelta(days=7)
 
-    # Aktuelle Wetterwerte anzeigen
-    if jetzt in df_wetter.index:
-        aktuelle_werte = df_wetter.loc[jetzt]
-        st.markdown(f"### 📍 Wetterdaten für {jetzt.strftime('%H:%M Uhr')}")
-        col1, col2, col3 = st.columns(3)
-        col1.metric("🌡️ Temperatur", f"{aktuelle_werte['temperature_2m']:.1f} °C")
-        col2.metric("💨 Wind", f"{aktuelle_werte['wind_speed_100m']:.1f} km/h")
-        col3.metric("☀️ Sonnenschein", f"{aktuelle_werte['sunshine_duration'] / 60:.1f} min")
-    else:
-        st.warning("⏱️ Für diese Uhrzeit liegen keine Wetterdaten vor.")
+    # 3) Filtern
+    df_window = df_wetter.loc[window_start:window_end]
 
-    df_plot = df_tag.reset_index().rename(columns={df_tag.index.name: "Zeit"})
 
-    # 🌡️ Temperaturdiagramm
-    st.markdown("### 🌡️ Temperaturverlauf")
+    # Index umbenennen und resetten 
+    df_window.index.name = "Zeit"
+    df_plot = df_window.reset_index()
+    
+    # Temperaturdiagramm 
+    # st.markdown("### 🌡️ Temperaturverlauf")
     fig1 = px.line(
-        df_plot, x="Zeit", y="temperature_2m", markers=True,
+        df_plot, x="Zeit", y="temperature_2m", markers=False,
         labels={"temperature_2m": "Temperatur [°C]", "Zeit": "Zeit"},
-        title="Temperatur im Tagesverlauf",
-        color_discrete_sequence=["red"]
+        title="🌡️ Temperaturverlauf",
+        color_discrete_sequence=["red"],
     )
+    fig1.add_shape(
+    type="line",
+    x0=transition, x1=transition,
+    y0=0,  y1=1,
+    xref="x", yref="paper",
+    line=dict(color="grey", dash="dash")
+)
     st.plotly_chart(fig1, use_container_width=True)
 
+
     # ☀️ Sonnenscheindauer (in Minuten)
-    st.markdown("### ☀️ Sonnenscheindauer")
     df_plot["sunshine_duration_min"] = df_plot["sunshine_duration"] / 60
     fig2 = px.line(
-        df_plot, x="Zeit", y="sunshine_duration_min", markers=True,
-        labels={"sunshine_duration_min": "Sonnenscheindauer [min]", "Zeit": "Zeit"},
-        title="Sonnenscheindauer pro Stunde",
+        df_plot, x="Zeit", y="sunshine_duration_min", markers=False,
+        labels={"sunshine_duration_min": "Sonnenscheindauer [min/h]", "Zeit": "Zeit"},
+        title="☀️ Sonnenscheindauer",
         color_discrete_sequence=["gold"]
+    )
+    fig2.add_shape(
+        type="line",
+        x0=transition, x1=transition, #cut
+        y0=0,  y1=1,
+        xref="x", yref="paper",
+        line=dict(color="grey", dash="dash")
     )
     st.plotly_chart(fig2, use_container_width=True)
 
     # 💨 Windgeschwindigkeit
-    st.markdown("### 💨 Windgeschwindigkeit")
     fig3 = px.line(
-        df_plot, x="Zeit", y="wind_speed_100m", markers=True,
+        df_plot, x="Zeit", y="wind_speed_100m", markers=False,
         labels={"wind_speed_100m": "Wind [km/h]", "Zeit": "Zeit"},
-        title="Windgeschwindigkeit im Tagesverlauf",
+        title="💨 Windgeschwindigkeit",
         color_discrete_sequence=["blue"]
+    )
+    fig3.add_shape(
+        type="line",
+        x0=transition, x1=transition, #cut
+        y0=0,  y1=1,
+        xref="x", yref="paper",
+        line=dict(color="grey", dash="dash")
     )
     st.plotly_chart(fig3, use_container_width=True)
 
-    # Optional: Globalstrahlung
-    if "global_tilted_irradiance" in df_plot.columns:
-        st.markdown("### ☀️ Globalstrahlung auf geneigte Ebene 35° (heute, in 10 W/m²)")
-        df_plot["irradiance_scaled"] = df_plot["global_tilted_irradiance"] / 10
-        fig_irr = px.line(
-            df_plot,
-            x="Zeit",
-            y="irradiance_scaled",
-            markers=True,
-            labels={
-                "irradiance_scaled": "Einstrahlung [10 W/m²]",
-                "Zeit": "Zeit"
-            },
-            title="Globale geneigte Einstrahlung über den Tag",
-            color_discrete_sequence=["orange"]
-        )
-        st.plotly_chart(fig_irr, use_container_width=True)
-
-    # Kombi-Diagramm
-    st.markdown("### 🔀 Kombiniertes Diagramm: Temperatur, Wind, Sonnenschein & Einstrahlung")
-    df_plot["Sonnenschein [h]"] = df_plot["sunshine_duration"] / 60
-    if "global_tilted_irradiance" in df_plot.columns:
-        df_plot["Einstrahlung [100 W/m²]"] = df_plot["global_tilted_irradiance"] / 10
-        plot_cols = [
-            "Zeit",
-            "temperature_2m",
-            "wind_speed_100m",
-            "Sonnenschein [h]",
-            "Einstrahlung [100 W/m²]"
-        ]
-        rename_map = {
-            "temperature_2m": "Temperatur [°C]",
-            "wind_speed_100m": "Wind [km/h]"
-        }
-    else:
-        plot_cols = [
-            "Zeit",
-            "temperature_2m",
-            "wind_speed_100m",
-            "Sonnenschein [h]"
-        ]
-        rename_map = {
-            "temperature_2m": "Temperatur [°C]",
-            "wind_speed_100m": "Wind [km/h]"
-        }
-    df_combo = df_plot[plot_cols].rename(columns=rename_map)
-    df_long = df_combo.melt(
-        id_vars="Zeit",
-        var_name="Messgröße",
-        value_name="Wert"
-    )
-    fig_combo = px.line(
-        df_long,
+    # Globalstrahlung
+    fig4 = px.line(
+        df_plot,
         x="Zeit",
-        y="Wert",
-        color="Messgröße",
-        markers=True,
-        title="🔀 Verlauf von Temperatur, Wind, Sonnenschein & Einstrahlung",
+        y="global_tilted_irradiance",
+        markers=False,
         labels={
-            "Wert": "Wert",
-            "Zeit": "Zeit",
-            "Messgröße": "Messgröße"
-        }
+            "global_tilted_irradiance": "Einstrahlung [W/m²]",
+            "Zeit": "Zeit"
+        },
+        title="☀️ Globalstrahlung auf die 35° geneigte Ebene gegen Süden",
+        color_discrete_sequence=["orange"]
     )
-    st.plotly_chart(fig_combo, use_container_width=True)
+    fig4.add_shape(
+        type="line",
+        x0=transition, x1=transition, #cut
+        y0=0,  y1=1,
+        xref="x", yref="paper",
+        line=dict(color="grey", dash="dash")
+    )
+    st.plotly_chart(fig4, use_container_width=True)
 
 
 ### 4. Preisvorhersage
 def sektion_price_vs_market():
-    st.subheader("📅 Strompreis-Prognose Vergleich mit tatsächlichem Preis")
+    st.subheader("Strompreis-Prognose")
     st.markdown(
         "Vergleich von Strompreisprognosen aus verschiedenen KI-Modellen mit den tatsächlichen Marktpreisen "
-        "beginnend ab einem frei wählbaren Startdatum. Es werden die folgenden 168 Stunden (7 Tage) angezeigt."
+        "Es werden die letzten 7 Tage, für die historische Wetterdaten vorliegen, prognostiziert. Diese liegen API-Bedingt immer 2 Tage in der Vergangenheit."
     )
 
     heute = datetime.date.today()
-    # Prognosezeitraum in der Sidebar
-    st.sidebar.markdown("### 📆 Prognosezeitraum")
-    start_datum = st.sidebar.date_input("Startdatum", heute - datetime.timedelta(days=8), key="KIvsMP")
+
+    ### später wieder implementieren um beliebige Prognosezeiträume zu erfassen
+    # # Prognosezeitraum in der Sidebar
+    # st.sidebar.markdown("### 📆 Prognosezeitraum")
+    # start_datum = st.sidebar.date_input("Startdatum", heute - datetime.timedelta(days=8), key="KIvsMP")
+    start_datum = heute - datetime.timedelta(days=8)
 
     # Dateipfade + Spaltennamen
-
     dateien = [
         "data/df_blockwise_result.pkl", 
         "data/df_single_step_result.pkl", 
@@ -386,43 +362,90 @@ def sektion_price_vs_market():
         "Marktpreise"
     ]
 
-    try:
-        # Einlesen & Normalisieren
-        dfs = lade_und_normalisiere_mehrere_daten(dateien, spalten)
-        df_combined = pd.concat(dfs, axis=1)
-        df_combined.columns = model_namen
+    # Einlesen & Normierung der Zeitreihe
+    dfs = lade_und_normalisiere_mehrere_daten(dateien, spalten)
+    df_combined = pd.concat(dfs, axis=1)
+    df_combined.columns = model_namen
 
-        # Startzeit als Timestamp mit Zeitzone
-        tz = df_combined.index.tz
-        start = pd.Timestamp(start_datum).tz_localize(tz)
+    # Filter auf 7-Tage-Zeitraum
+    tz = df_combined.index.tz
+    start = pd.Timestamp(start_datum).tz_localize(tz)
+    startzeit = df_combined[df_combined.index.date == start.date()].index.min()
+    if pd.isna(startzeit):
+        st.warning("⚠️ Für dieses Startdatum liegen keine Daten vor.")
+        return
 
-        # Finde erste existierende Zeit an diesem Tag
-        startzeit = df_combined[df_combined.index.date == start.date()].index.min()
-        if pd.isna(startzeit):
-            st.warning("⚠️ Für dieses Startdatum liegen keine Daten vor.")
-        else:
-            df_combined = df_combined[df_combined.index >= startzeit].iloc[:168]
+    df_combined = df_combined[df_combined.index >= startzeit].iloc[:168]
 
-            # 📈 Diagramm anzeigen
-            fig = px.line(
-                df_combined,
-                labels={"value": "Preis [€/MWh]", "index": "Zeit"},
-                title="🔮 KI vs. Realität",
-                markers=True
-            )
-            fig.update_layout(title_x=0.5)
-            st.plotly_chart(fig, use_container_width=True)
+    # Plot
+    fig = px.line(
+        df_combined,
+        color_discrete_sequence=["lightgreen", "lightblue", "red"],
+        labels={"value": "Preis [€/MWh]", "index": "Zeit", "variable": "Modell"},
+        title="Model vs. Realität",
+        markers=False
+    )
+    fig.update_xaxes(title_text="Datum")
+    fig.update_layout(title_x=0, dragmode="pan")
+    st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True})
 
-            # 📋 Tabelle anzeigen
-            st.markdown("### 📋 Vergleichstabelle: Prognostizierte & Echte Strompreise")
-            df_table = df_combined.copy()
-            df_table.reset_index(inplace=True)
-            df_table.rename(columns={"index": "Zeit"}, inplace=True)
-            for spalte in df_table.columns[1:]:
-                df_table[spalte] = df_table[spalte].map(lambda x: f"{x:,.2f}".replace(".", ",") + " €")
-            st.table(df_table)
-    except Exception as e:
-        st.error(f"❌ Fehler beim Laden oder Verarbeiten der Daten: {e}")
+
+    
+    # def smape(y_true, y_pred): # Bei MAPE kann, wenn der Preis real 0 ist, eine Div/0 entstehen :-/ 
+    #     denominator = (np.abs(y_true) + np.abs(y_pred)) / 2
+    #     mask = denominator != 0
+    #     return np.mean(np.abs(y_true[mask] - y_pred[mask]) / denominator[mask]) * 100
+    
+    def rel_rmse(y_true, y_pred):
+        rmse = root_mean_squared_error(y_true, y_pred)
+        std_dev = np.std(y_true, ddof=1)
+        return rmse / std_dev if std_dev != 0 else np.nan
+    
+    with st.expander("Fehlerkennzahlen & Marktvolatilität", expanded=True):
+        # Nur die Modell-Namen, nicht die Marktpreise
+        modelle = ["MLP Blockwise 24h", "LSTM Single Step 168h"]
+
+        daten = []
+        y_true_full = df_combined["Marktpreise"]
+
+        # Marktpreis-Volatilität berechnen
+        std_true = np.std(y_true_full.dropna(), ddof=1)
+
+        for modell in modelle:
+            y_pred_full = df_combined[modell]
+            mask = y_true_full.notna() & y_pred_full.notna()
+            y_true = y_true_full[mask]
+            y_pred = y_pred_full[mask]
+            resid = y_true - y_pred
+
+            daten.append({
+                "Modell":    modell,
+                "RMSE":      f"{root_mean_squared_error(y_true, y_pred):.1f}",
+                "MAE":       f"{mean_absolute_error(y_true, y_pred):.1f}",
+                "StdErr":    f"{np.std(resid, ddof=1):.1f}",
+                "R²":        f"{r2_score(y_true, y_pred):.3f}",
+                # "MAPE (%)":  f"{(np.mean(abs(resid/y_true))*100):.1f}"
+                # "SMAPE (%)": f"{smape(y_true, y_pred):.1f}" # MAPE durch SMAPE ersetzt
+                "RMSE / StdDev Markt":  f"{rel_rmse(y_true,y_pred):.2f}" # vllt ne Erlärung zu schreiben?
+            })
+
+
+        df_stats = pd.DataFrame(daten).set_index("Modell")
+        
+
+        # 3) Layout: Tabelle & StdDev
+        col1, col2 = st.columns([5,1])
+        with col1:
+            st.table(df_stats)
+        with col2:
+            st.metric("StdDev Marktpreis", f"{std_true:.1f} €/MWh")
+
+    #ausklappbare Tabelle
+    with st.expander("Vergleichstabelle anzeigen", expanded=False):
+        df_table = df_combined.copy().reset_index().rename(columns={"index": "Zeit"})
+        for sp in df_table.columns[1:]:
+            df_table[sp] = df_table[sp].map(lambda x: f"{x:,.2f}".replace(".", ",") + " €")
+        st.table(df_table)
 
 
 ### 5. Wettersimulation
@@ -559,22 +582,28 @@ def sektion_price_weather_simulation():
     Lädt vorhandene Ergebnisdateien dynamisch, visualisiert alle vorhandenen Reihen
     und berechnet Fehlerkennzahlen, sofern möglich.
     """
-    st.subheader("💡 Strompreis Wettersimulation")
+    st.subheader("Strompreis nach Wettersimulation")
 
     sun_scale = st.sidebar.slider("Sonnenskala (0-110%)", 0.0, 1.1, 1.0, 0.05)
     wind_factor = st.sidebar.slider("Windfaktor", 0.0, 1.1, 0.5, 0.05)
 
-    st.sidebar.markdown("### 📆 Prognosezeitraum")
     heute = datetime.date.today()
-    start_datum_wetter = st.sidebar.date_input(
-        "Startdatum",
-        value=heute - datetime.timedelta(days=7),
-        max_value=heute,
-        key="start_datum_123"
-    )
+
+    ### für frei wählbaren Zeitraum
+    # st.sidebar.markdown("### 📆 Prognosezeitraum")    
+    # start_datum_wetter = st.sidebar.date_input(
+    #     "Startdatum",
+    #     value=heute - datetime.timedelta(days=7),
+    #     max_value=heute,
+    #     key="start_datum_123"
+    # )
+    # start_offset = (heute - start_datum_wetter).days
+    
+    ### Fixer Zeitraum
+    start_datum_wetter = heute - datetime.timedelta(days=8)
     start_offset = (heute - start_datum_wetter).days
 
-    if st.sidebar.button("Prozess starten"):
+    if st.sidebar.button("Simulation starten"):
         PROCESSING.processing_weather(start=start_offset, sun=sun_scale, wind=wind_factor)
 
     # Dateipfade und Spaltennamen
@@ -639,7 +668,7 @@ def sektion_price_weather_simulation():
                     if mask.sum() > 0:
                         rmse = root_mean_squared_error(real[mask], pred[mask])
                         mae  = mean_absolute_error(real[mask], pred[mask])
-                        st.sidebar.markdown(f"### 📊 Fehlerkennzahlen für {model}")
+                        st.sidebar.markdown(f"### Fehlerkennzahlen {model}")
                         st.sidebar.metric(f"RMSE (€/MWh) {model}", f"{rmse:,.2f}")
                         st.sidebar.metric(f"MAE (€/MWh) {model}", f"{mae:,.2f}")
 
@@ -647,20 +676,13 @@ def sektion_price_weather_simulation():
             fig = px.line(
                 df_combined,
                 labels={"value": "Preis [€/MWh]", "index": "Zeit"},
-                title="Simuliertes Wetter vs. Wettervorhersage vs. Reale Werte",
-                markers=True
+                color_discrete_sequence=["lightgreen", "yellow", "red"],
+                title="Wetterprognose vs. Wettersimulation vs. Reale Marktpreise",
+                markers=False
             )
-            fig.update_layout(title_x=0.5)
+            fig.update_layout(title_x=0)
             st.plotly_chart(fig, use_container_width=True)
 
-            # 📋 Tabelle anzeigen
-            st.markdown("### 📋 Vergleichstabelle")
-            df_table = df_combined.copy()
-            df_table.reset_index(inplace=True)
-            df_table.rename(columns={"index": "Zeit"}, inplace=True)
-            for spalte in df_table.columns[1:]:
-                df_table[spalte] = df_table[spalte].map(lambda x: f"{x:,.2f}".replace(".", ",") + " €")
-            st.table(df_table)
     except Exception as e:
         st.error(f"❌ Fehler beim Laden oder Verarbeiten der Daten: {e}")
 
@@ -674,15 +696,15 @@ def main():
     """
     Einstiegspunkt der App und Navigationsleiste
     """
-    st.sidebar.subheader("Prädiktiven Analyse von Strompreisen basierend auf simulierten und berichtsbasierten Wetterdaten")
-    st.sidebar.info("aktuell müssen die Daten per API sowie die Modellberechnung noch manuell angestoßen werden.  \n" \
+    st.sidebar.subheader("Prädiktive Analyse von Strompreisen basierend auf simulierten und berichtsbasierten Wetterdaten")
+    st.sidebar.info("Aktuell muss die Datenextraktion über die Open-Meteo-API sowie die Modellberechnung noch manuell angestoßen werden.  \n" \
         " -> src/weather_API/wetterapi_main.py ausführen um die aktuellen Daten aus der API zu ziehen (~ 30 Minuten)  \n" \
         " -> src/PROCESSING.py ausführen um die Prognosen zu erstellen (je nach Hardware einige Minuten)")
     nav = [
-        "Stromdaten anzeigen",
+        "Marktkennzahlen",
         "Wetter Locations",
-        "Live-Wetter-Daten anzeigen",
-        "Strompreis (KI vs. Marktpreis)",
+        "Wetter-Daten",
+        "Preisprognose",
         "Wetterdaten-Simulation",
         "Strompreis Wettersimulation"
     ]

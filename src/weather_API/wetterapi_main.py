@@ -116,7 +116,7 @@ def main():
     # 6. Für ML-Modelle zu tz-naiv und als .pkl speichern
     pd.to_pickle(df_for_model, f"{data_dir}df_for_model.pkl")
     print("df_for_model.pkl gespeichert")
-    # show(df_for_model, block=True)
+    #show(df_for_model, block=True)
 
 if __name__ == "__main__":
     main()
