@@ -16,6 +16,7 @@ OLD_*
 saved_models/
 __pycache__/
 .vscode
+cron.log
 
 # nicht alles in data/ soll getrackt werden
 data/*.pkl

@@ -1,5 +1,5 @@
 # testlog
-* * * * * root echo "Cron Test: $(date)" >> /var/log/cron.log 2>&1
+#* * * * * root echo "Cron Test: $(date)" >> /var/log/cron.log 2>&1
 # Wetterdaten: täglich um 03:00 Uhr
 0 3 * * * root python /app/src/weather_API/wetterapi_main.py >> /var/log/cron.log 2>&1
 # Processing: täglich um 04:00 Uhr
