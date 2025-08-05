@@ -7,8 +7,8 @@ import requests #nur zum testen
 from retry_requests import retry
 from locations import location
 from collections import defaultdict
-from pandasgui import show
-from bundeslaender_gewichte import sun_weights, wind_weights
+# from pandasgui import show #nur für debuggingzwecke
+from weather_API.bundeslaender_gewichte import sun_weights, wind_weights
 
 data_dir = "data/"
 
@@ -167,5 +167,5 @@ def func_all_funcs_forecast(past_days:int = None, forecast_days:int = None) -> p
 
 if __name__ == "__main__":
     df = func_all_funcs_forecast()
-    show(df, block=True)
+    # show(df, block=True)
 

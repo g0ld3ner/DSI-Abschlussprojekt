@@ -2,11 +2,11 @@ from pathlib import Path
 import pickle
 
 import pandas as pd
-from pandasgui import show #nur für debuggingzwecke!
+# from pandasgui import show #nur für debuggingzwecke!
 
-import wetterapi_forecast
-import wetterapi_history
-import eci_api
+import weather_API.wetterapi_forecast as wetterapi_forecast
+import weather_API.wetterapi_history as wetterapi_history
+import weather_API.eci_api as eci_api
 
 data_dir = "data/"
 

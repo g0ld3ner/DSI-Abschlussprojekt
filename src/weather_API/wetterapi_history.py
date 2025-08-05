@@ -5,10 +5,10 @@ import pandas as pd
 import openmeteo_requests # wird nicht mehr gebraucht
 import requests_cache
 from retry_requests import retry
-from bundeslaender_gewichte import sun_weights, wind_weights
+from weather_API.bundeslaender_gewichte import sun_weights, wind_weights
 from locations import location
 from collections import defaultdict
-from pandasgui import show
+# from pandasgui import show
 
 data_dir = "data/"
 
@@ -180,7 +180,7 @@ def func_all_funcs_history(start_date:str=None, end_date:str=None) -> pd.DataFra
 
 if __name__ == "__main__":
     df = func_all_funcs_history()
-    show(df, block=True)
+    # show(df, block=True)
 
 
 

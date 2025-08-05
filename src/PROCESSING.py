@@ -107,11 +107,8 @@ def processing_all(start:int=9):
     metric_tuple_single = train_single_step(start_date=start_date)
     return metric_tuple_block, metric_tuple_single
 
-
-
-
-if __name__ == '__main__':
-# ########
+def main():
+    # ########
 #     test_df = prepare_for_model()
 #     print(test_df.info())
 #     print("="*50)
@@ -147,3 +144,8 @@ if __name__ == '__main__':
     print(df_loaded_single.info())
     print("="*50)
 ########
+
+
+
+if __name__ == '__main__':
+    main()

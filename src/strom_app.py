@@ -15,6 +15,7 @@ from sklearn.metrics import root_mean_squared_error, mean_absolute_error,  mean_
 ### Eigene Module
 import locations
 import PROCESSING
+from weather_API.wetterapi_main import main as wetterapi_main
 
 ### Streamlit config
 st.set_page_config(
@@ -333,6 +334,9 @@ def sektion_price_vs_market():
         "Vergleich von Strompreisprognosen aus verschiedenen KI-Modellen mit den tatsächlichen Marktpreisen "
         "Es werden die letzten 7 Tage, für die historische Wetterdaten vorliegen, prognostiziert. Diese liegen API-Bedingt immer 2 Tage in der Vergangenheit."
     )
+    st.sidebar.warning("Neuberechnung kann ja nach Hardware einige Minuten in Anspruch nehmen!")
+    if st.sidebar.button("Prognose (neu) berechnen"):
+        PROCESSING.main()
 
     heute = datetime.date.today()
 
@@ -697,9 +701,30 @@ def main():
     Einstiegspunkt der App und Navigationsleiste
     """
     st.sidebar.subheader("Prädiktive Analyse von Strompreisen basierend auf simulierten und berichtsbasierten Wetterdaten")
-    st.sidebar.info("Aktuell muss die Datenextraktion über die Open-Meteo-API sowie die Modellberechnung noch manuell angestoßen werden.  \n" \
-        " -> src/weather_API/wetterapi_main.py ausführen um die aktuellen Daten aus der API zu ziehen (~ 30 Minuten)  \n" \
-        " -> src/PROCESSING.py ausführen um die Prognosen zu erstellen (je nach Hardware einige Minuten)")
+    # st.sidebar.info("Aktuell muss die Datenextraktion über die Open-Meteo-API sowie die Modellberechnung noch manuell angestoßen werden.  \n" \
+    #     " -> src/weather_API/wetterapi_main.py ausführen um die aktuellen Daten aus der API zu ziehen (~ 30 Minuten)  \n" \
+    #     " -> src/PROCESSING.py ausführen um die Prognosen zu erstellen (je nach Hardware einige Minuten)")
+    
+    if os.path.exists("data/df_for_model.pkl"):
+        try:
+            df = pd.read_pickle("data/df_for_model.pkl")
+            last_history = df[df["Quelle"] == "history"].iloc[-1]
+            last_datetime = last_history.name
+        except Exception as e:
+            st.sidebar.warning(f"Fehler beim Laden des letzten History-Eintrags: {e}")
+        st.sidebar.info(f"Aktueller Stand der Wetterdaten (history): {last_datetime.strftime('%Y-%m-%d %H:%M')}  \n" \
+                "Heute - 2 Tage = aktuell!")
+    else:
+        st.sidebar.warning("App das erste mal gestartet?  \n" \
+            " -> Wetterdaten müssen erst aus der API bezogen werden.  \n" \
+            "Das dauert ~ 30 Minuten!"
+            )
+    
+    if st.sidebar.button("Wetterdaten beziehen ~30min!"):
+        wetterapi_main()
+    
+    
+
     nav = [
         "Marktkennzahlen",
         "Wetter Locations",

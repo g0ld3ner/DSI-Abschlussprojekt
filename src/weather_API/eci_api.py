@@ -4,13 +4,13 @@ import pandas as pd
 import numpy as np
 import datetime
 
-import countrys
-import weekdays
+import weather_API.countrys as countrys
+import weather_API.weekdays as weekdays
 #import holidays
 
 import pickle
 
-from pandasgui import show   # pip install pandasgui (und ggf.: pip install bokeh==2.4.3)
+# from pandasgui import show   # pip install pandasgui (und ggf.: pip install bokeh==2.4.3)
 
 
 def current_day(minus: int = 0) -> str:
@@ -203,6 +203,6 @@ if __name__ == "__main__": # nur zum debuggen
     price_df = test_eci.get_price_series()
     print("PRICE -------------------------------")
     print(price_df.index.tz)
-    show(price_df)
+    # show(price_df)
    
     
