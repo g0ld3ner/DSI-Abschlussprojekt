@@ -7,6 +7,7 @@ import requests #nur zum testen
 from retry_requests import retry
 from locations import location
 from collections import defaultdict
+from typing import Callable, Optional
 # from pandasgui import show #nur für debuggingzwecke
 from weather_API.bundeslaender_gewichte import sun_weights, wind_weights
 
@@ -18,7 +19,7 @@ cache_session = requests_cache.CachedSession(f"{data_dir}.forecast_cache", expir
 session = retry(cache_session, retries=5, backoff_factor=0.5)
 
 def get_weather_forecast_by_location(lat: float, lon: float, past_days:int|None = 2, forecast_days:int|None = 7) -> pd.DataFrame:
-    print(f"Start Wetterdaten für {lat}, {lon}")
+    print(f"Wetterdaten für {lat}, {lon}")
 
     if past_days is None:
         past_days = 2
@@ -70,17 +71,23 @@ def get_weather_forecast_by_location(lat: float, lon: float, past_days:int|None 
     print("-"*30)
     return df
 
-def get_dataframe_dict(loc:dict, past_days:int, forecast_days:int) -> dict[str, list[pd.DataFrame]]:
+def get_dataframe_dict(loc:dict, past_days:int, forecast_days:int, progress_cb: Optional[Callable[[int, int, str], None]] = None) -> dict[str, list[pd.DataFrame]]:
     """
     Erstellt ein Dictionary von DataFrames (key: Bundesland, value: DF mit den API-Daten je Location)
     """
     df_dict = defaultdict(list) #dict values per default auf list
-    counter = 0
+    bl_counter = 0
+    count = 0
+    total = sum(len(coords) for coords in loc.values())
+
     for bl, coord in loc.items():
-        counter += 1
+        bl_counter += 1
         print("."*30)
-        print(f"Daten für Bundesland {counter} von 17")
+        print(f"Daten für Bundesland {bl_counter} von 17")
         for lat, lon in coord:
+            count += 1
+            if progress_cb:
+                progress_cb(count, total, f"Forecast für {bl}: {lat:.2f},{lon:.2f}\n(ca. 3 Sekunden pro Standort)")
             df = get_weather_forecast_by_location(lat, lon, past_days, forecast_days)
             df_dict[bl].append(df)
     return df_dict
@@ -150,9 +157,9 @@ def add_source(df:pd.DataFrame) -> pd.DataFrame:
     df["Quelle"] = "forecast"
     return df
 
-def func_all_funcs_forecast(past_days:int = None, forecast_days:int = None) -> pd.DataFrame:
+def func_all_funcs_forecast(past_days:int = None, forecast_days:int = None, progress_cb: Optional[Callable[[int, int, str], None]] = None) -> pd.DataFrame:
     print("Dict mit DF's aller Locations wird erstellt...")
-    bl_dict = get_dataframe_dict(location, past_days, forecast_days)
+    bl_dict = get_dataframe_dict(location, past_days, forecast_days, progress_cb=progress_cb)
     print("Starte Preprocessing:")
     bl_mean_dict = bl_means(bl_dict)
     print("Means über die BL berechnen -> fertig")

@@ -334,13 +334,13 @@ def sektion_price_vs_market():
         "Vergleich von Strompreisprognosen aus verschiedenen KI-Modellen mit den tatsächlichen Marktpreisen "
         "Es werden die letzten 7 Tage, für die historische Wetterdaten vorliegen, prognostiziert. Diese liegen API-Bedingt immer 2 Tage in der Vergangenheit."
     )
-    st.sidebar.warning("Neuberechnung kann ja nach Hardware einige Minuten in Anspruch nehmen!")
+    st.sidebar.warning("Neuberechnung kann je nach Hardware einige Minuten in Anspruch nehmen!")
     if st.sidebar.button("Prognose (neu) berechnen"):
         PROCESSING.main()
 
     heute = datetime.date.today()
 
-    ### später wieder implementieren um beliebige Prognosezeiträume zu erfassen
+    ###### später wieder implementieren um beliebige Prognosezeiträume zu erfassen
     # # Prognosezeitraum in der Sidebar
     # st.sidebar.markdown("### 📆 Prognosezeitraum")
     # start_datum = st.sidebar.date_input("Startdatum", heute - datetime.timedelta(days=8), key="KIvsMP")
@@ -721,7 +721,15 @@ def main():
             )
     
     if st.sidebar.button("Wetterdaten beziehen ~30min!"):
-        wetterapi_main()
+        # Progress Balken:
+        progress_bar = st.sidebar.progress(0.0)
+        status_text  = st.sidebar.empty()
+
+        def progress_cb(count, total, message):
+            progress_bar.progress(count / total)
+            status_text.text(f"{count}/{total}: {message}")
+        # API-Aufruf:
+        wetterapi_main(progress_cb=progress_cb)
     
     
 

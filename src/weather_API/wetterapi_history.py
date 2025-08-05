@@ -8,6 +8,7 @@ from retry_requests import retry
 from weather_API.bundeslaender_gewichte import sun_weights, wind_weights
 from locations import location
 from collections import defaultdict
+from typing import Callable, Optional
 # from pandasgui import show
 
 data_dir = "data/"
@@ -27,7 +28,7 @@ def date_to_string(date: datetime) -> str: #die API braucht ja einen String
     return date.strftime("%Y-%m-%d")
 
 def get_weather_by_location(lat: float, lon: float, start_date: str = None, end_date: str = None) -> pd.DataFrame:
-    print(f"Start Wetterdaten für {lat}, {lon}")
+    print(f"Wetterdaten für {lat}, {lon}")
 
     if end_date is None:
         ### Die archive-API hängt immer 2 Tage hinterher, daher müssen diese 2 Tage aus der Forecast API aufgefüllt werden (daher minus=2)
@@ -85,17 +86,24 @@ def get_weather_by_location(lat: float, lon: float, start_date: str = None, end_
     print("-"*30)
     return df
 
-def get_dataframe_dict(loc:dict, start_date:str, end_date:str) -> dict[str, list[pd.DataFrame]]:
+def get_dataframe_dict(loc:dict, start_date:str, end_date:str, progress_cb: Optional[Callable[[int, int, str], None]] = None) -> dict[str, list[pd.DataFrame]]:
     """
     Erstellt ein Dictionary von DataFrames (key: Bundesland, value: DF mit den API-Daten je Location)
     """
     df_dict = defaultdict(list) #dict values per default auf list
-    counter = 0
+    bl_counter = 0
+    count_progress = 0
+    total = sum(len(coords) for coords in loc.values())
+
     for bl, coord in loc.items():
-        counter += 1
+        bl_counter += 1
         print("."*30)
-        print(f"Daten für Bundesland {counter} von 17")
+        print(f"Daten für Bundesland {bl_counter} von 17")
         for lat, lon in coord:
+            count_progress += 1
+            if progress_cb:
+                progress_cb(count_progress, total, f"History für {bl}: {lat:.2f},{lon:.2f}\n(ca. 25 Sekunden pro Standort)")
+            #API aufruf:
             df = get_weather_by_location(lat, lon, start_date, end_date)
             df_dict[bl].append(df)
     return df_dict
@@ -164,9 +172,9 @@ def add_source(df:pd.DataFrame) -> pd.DataFrame:
     df["Quelle"] = "history"
     return df
 
-def func_all_funcs_history(start_date:str=None, end_date:str=None) -> pd.DataFrame:
+def func_all_funcs_history(start_date:str=None, end_date:str=None, progress_cb: Optional[Callable[[int, int, str], None]] = None) -> pd.DataFrame:
     print("Dict mit DF's aller Locations wird erstellt...")
-    bl_dict = get_dataframe_dict(location, start_date, end_date)
+    bl_dict = get_dataframe_dict(location, start_date, end_date, progress_cb=progress_cb)
     print("Starte Preprocessing:")
     bl_mean_dict = bl_means(bl_dict)
     print("Means über die BL berechnen -> fertig")

@@ -64,10 +64,10 @@ def ensure_unique_index(df: pd.DataFrame) -> pd.DataFrame:
     print(f"es wurden {zeilen_entfernt} Duplikate entfernt")
     return df[~df.index.duplicated(keep="first")]
 
-def main():
+def main(progress_cb = None):
     # 1. Daten abrufen
-    df_history = wetterapi_history.func_all_funcs_history()
-    df_forecast = wetterapi_forecast.func_all_funcs_forecast()
+    df_history = wetterapi_history.func_all_funcs_history(progress_cb=progress_cb)
+    df_forecast = wetterapi_forecast.func_all_funcs_forecast(progress_cb=progress_cb)
     eci = eci_api.EnergyChartsInfo()
     df_price = eci.get_price_series()
     # show(df_history, block=False)
