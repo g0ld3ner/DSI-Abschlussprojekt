@@ -9,14 +9,15 @@ conda_requirements.txt
 src/weather_API/TEST.py
 src/weather_API/wetterapi_pipeline.py
 
-# alte Datein eingeleitet mit OLD_
+# alte Datein eingeleitet mit OLD_ oder test
 OLD_*
+test*
 
 # unnötige (automatisch erstellte) Datein
 saved_models/
 __pycache__/
 .vscode
-cron.log
+logs/*.log
 
 # nicht alles in data/ soll getrackt werden
 data/*.pkl

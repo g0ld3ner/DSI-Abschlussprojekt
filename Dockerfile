@@ -3,6 +3,7 @@ FROM python:3.12.3-slim
 RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+ENV PYTHONPATH=/app/src
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
@@ -16,4 +17,4 @@ RUN touch /var/log/cron.log
 
 EXPOSE 8501
 
-CMD ["sh", "-c", "cron && streamlit run src/strom_app.py --server.address=0.0.0.0"]
+CMD ["sh", "-c", "cron -f & streamlit run src/strom_app.py --server.address=0.0.0.0"]

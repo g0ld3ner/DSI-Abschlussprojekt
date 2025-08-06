@@ -1,8 +1,11 @@
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PYTHONPATH=/app/src
 # testlog
-* * * * * root echo "Cron Test: $(date)" >> /var/log/cron.log 2>&1
+# * * * * * root echo "Cron Test: $(date)" >> /app/logs/cron.log 2>&1
 # python test
-* * * * * root python3 /app/scripts/test_cron.py
+# * * * * * root /usr/local/bin/python3 /app/scripts/test_cron.py >> /app/logs/python_cron_test.log 2>&1
 # Wetterdaten: täglich um 03:00 Uhr
-0 3 * * * root python3 /app/src/weather_API/wetterapi_main.py >> /var/log/cron.log 2>&1
+0 3 * * * root cd /app && /usr/local/bin/python3 -m weather_API.wetterapi_main >> /app/logs/weather_api.log 2>&1
 # Processing: täglich um 04:00 Uhr
-0 4 * * * root python3 /app/src/PROCESSING.py >> /var/log/cron.log 2>&1
+0 4 * * * root cd /app && /usr/local/bin/python3 -m PROCESSING >> /app/logs/processing.log 2>&1
