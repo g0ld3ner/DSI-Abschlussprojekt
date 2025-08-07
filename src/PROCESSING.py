@@ -108,11 +108,11 @@ def processing_all(start:int=9):
     return metric_tuple_block, metric_tuple_single
 
 def main():
-    # ########
-#     test_df = prepare_for_model()
-#     print(test_df.info())
-#     print("="*50)
-# ########
+########
+    test_df = prepare_for_model()
+    print(test_df.info())
+    print("="*50)
+########
     # start_date = "2025-04-01 00:00:00"
     start_date = current_day(8) #8
     print(start_date)
