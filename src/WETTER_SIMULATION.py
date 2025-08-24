@@ -65,6 +65,53 @@ def simulate_weather_data(df, sun_scale=0.6, wind_factor=0.5):
     df["gti_sim"] = df["gti_peak_smooth"] * sun_scale
     df["sunhours_sim"] = df["sunhours * gewichtung(sun)"] * sun_scale
 
+    ### Wind "zufälliger" simulieren (noch testen)
+    # #############
+    # # --- Wind-Simulation: stündliche Quantile + stochastische Schwankung ---
+    # wq = df.groupby("hour")["windspeed * gewichtung(wind)"].quantile([0.0001, 0.999]).unstack()
+    # if wq.shape[1] != 2:
+    #     df["wind_sim"] = np.nan
+    #     raise ValueError("Windquantile konnten nicht berechnet werden.")
+
+    # wq.columns = ["wind_min", "wind_max"]
+    # df = df.join(wq, on="hour")
+
+    # if wind_factor == 0:
+    #     # kompletter „Wind aus“
+    #     df["wind_sim"] = 0.0
+    # else:
+    #     # Zielniveau innerhalb der stündlichen Bandbreite
+    #     mu = df["wind_min"] + wind_factor * (df["wind_max"] - df["wind_min"])
+
+    #     # Rauschparameter
+    #     noise_scale = 0.18  # 0.10–0.25 typ. sinnvoll
+    #     phi = 0.7           # AR(1): 0 = weißes Rauschen, 0.9 = sehr glatt
+    #     smooth_window = 3   # optionales Nachglätten (Stunden); 1/0 = aus
+
+    #     # Bandbreite pro Zeitschritt (numerisch stabil halten)
+    #     band = (df["wind_max"] - df["wind_min"]).clip(lower=1e-6)
+    #     sigma_t = noise_scale * band * np.sqrt(wind_factor)
+
+    #     # Zeitlich korreliertes Rauschen (AR(1)) als Series über dem Index
+    #     rng = np.random.default_rng(42)  # reproduzierbar
+    #     eta = rng.normal(loc=0.0, scale=1.0, size=len(df))
+    #     eps = pd.Series(0.0, index=df.index)
+    #     for t in range(1, len(df)):
+    #         eps.iloc[t] = phi * eps.iloc[t-1] + np.sqrt(1 - phi**2) * eta[t]
+
+    #     # Stochastische Simulation um das Zielniveau
+    #     wind_raw = mu + eps * sigma_t
+
+    #     # Auf empirische Grenzen je Stunde beschneiden
+    #     wind_clipped = wind_raw.clip(lower=df["wind_min"], upper=df["wind_max"])
+
+    #     # Sanft glätten (optional)
+    #     df["wind_sim"] = (
+    #         wind_clipped.rolling(window=smooth_window, min_periods=1).mean()
+    #         if smooth_window and smooth_window > 1 else wind_clipped
+    #     )
+    # ####################
+
     # Wind-Simulation: Pro Stunde werden Extremquantile (0.01%-Quantil und 99.9%-Quantil) ermittelt.
     wq = df.groupby("hour")["windspeed * gewichtung(wind)"].quantile([0.0001, 0.999]).unstack()
     if wq.shape[1] == 2:
@@ -79,8 +126,6 @@ def simulate_weather_data(df, sun_scale=0.6, wind_factor=0.5):
         df["wind_sim"] = np.nan
         raise ValueError("Windquantile konnten nicht berechnet werden.")
     
-    # (Optional) Entferne Hilfsspalten, falls nicht benötigt:
-    # df.drop(columns=["month", "hour"], inplace=True)
     
     return df
 

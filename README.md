@@ -7,20 +7,22 @@ Eine interaktive Anwendung zur Analyse und Visualisierung von Strompreisen in Ab
 Die Anwendung ermöglicht das Laden, Simulieren und Aufbereiten historischer Wetter- und Preisdaten sowie die Prognose zukünftiger Marktpreise (+7 Tage).
 
 Kern des Projekts ist die Strompreisprognose verschiedener Machine-Learning-Modelle im Vergleich zu den tatsächlichen Marktpreisen.
+Dazu wurden 60+ Koordinaten verteilt über ganz Deutschland gewählt, um eine möglichst homogene Wetterprognose für das ganze Land zu erhalten. Die Verteilung der Erzeuger sind dafür aber sehr heterogen (viele Windkraftwerke im Norden, viele Solarkraftwerke im Süden). Daher fließen die Daten der Koordinaten gewichtet nach "Anteil an der Erzeugung je Bundesland" in die Modellberechnung ein. 
 Des Weiteren lassen sich Sonnenstrahlung (GTI) und Windgeschwindigkeit simulieren, um „Was-wäre-wenn“-Szenarien für Strompreise zu untersuchen.
 
-Die Anwendung richtet sich an:
-- Data Scientists
-- Energie- und Wetteranalyst:innen
-- Unternehmen/Behörden, die Preismodelle und Wettersimulationen nachvollziehen möchten
+**Weitere Details in der App. Link zur Demo: https://strom-app.mayone.de/**
 
 ## Features
-- Laden und Aufbereiten historischer Wetterdaten (API)
-- Simulation von Wetterdaten-Szenarien
-- Visualisierung von Strompreisen (Markt vs. ML-Prognose vs. Simulation) 
-
-**Die App ist derzeit nur zu Demonstrationszwecken geeignet.**
-- API-Abfragen sowie die Preisprognose müssen derzeit noch manuell angestoßen werden – bitte der Erklärung in der App folgen.
+- Kurze Übersicht zu den Kennzahlen aus 2025
+- Karte mit Koordinaten der Messpunkte für die Wetterdaten
+- Diagramme zu aktuellen Wetterdaten (-7 Tage = History, +7 Tage = Forecast)
+- Preisprognose der vergangenen 7 Tage gegenüber dem realen Strompreis
+- Simulation Sonnenstrahlung (GTI) und Windgeschwindigkeit als Oberkurve
+- Visualisierung von Strompreisen (Markt vs. ML-Prognose vs. Simulation -> "was wäre wenn")
+- API-Abfragen für die Wetterdaten sowie die Berechnung der Preisprognose werden täglich zwischen 3 und 5 Uhr morgens ausgeführt
+- API-Abfrage sowie Prognose können manuell angestoßen werden
+   - Wetterdaten neu abfragen: ~30 Minuten (Limit der API)
+   - Model-Prognose: je nach Hardware einige Minuten
 
 ## Installation
 1. Repository klonen:
@@ -45,43 +47,13 @@ Die Anwendung richtet sich an:
 
 
 
-## Usage
+## Usage (ohne Docker)
 1. Starte die Streamlit-App:
    ```bash
    streamlit run src/strom_app.py
    ```
 2. Folge den Anweisungen in der Weboberfläche.
 
-## Projektstruktur
-```
-projekt-root/
-├── data/                  # Alle .pkl-Datendateien und Modelloutputs
-│    └── ...pkl
-├── docs/                  # Excel- und SVG-Dateien zur Visualisierung
-│    ├── anteil_erneuerbare_2025.xlsx
-│    ├── stromdaten_nettoerzeugung_q2_2025.xlsx
-│    ├── installierte_leistung_stromerzeugung.svg
-│    └── ...
-├── src/                   # Quellcode, Streamlit-App, Hilfsmodule
-│    ├── strom_app.py          # Haupt-App
-│    ├── PROCESSING.py
-│    ├── BLOCKWISE.py
-│    ├── WINSORIZING.py
-│    ├── ...
-│    └── weather_API/          # Wetter-APIs, Standortdaten etc.
-│         ├── wetterapi_gesamt.py
-│         ├── wetterapi_forecast.py
-│         ├── wettermodul_history.py
-│         ├── bundeslaender_gewichte.py
-│         ├── locations.py
-│         └── ...
-├── scripts/               # Hilfsskripte
-│    └── export_requirements.py
-├── requirements.txt       # Paketabhängigkeiten
-├── environment.yml        # Für die Installation mit Conda
-├── README.md              # (Diese Datei)
-└── .gitignore             # 
-```
 
 ## Kontakt & Lizenz
 Dieses Projekt entstand im Rahmen des Data Science Abschlussprojekts (DSI).
@@ -92,11 +64,17 @@ https://github.com/g0ld3ner
 
 
 ## Changelog:
+- 2025-08: Ausführliche Projektbeschreibung
+- 2025-07: Täglicher Cronjob, Visualisierung verbessert
 - 2025-06: Refactoring, Dokumentation, Fehlerhandling verbessert
 - 2025-04: Erster Prototyp für die Abschlusspräsentation 
 
 --------------------------------
 
 ## Ausblick:
-- Automatisierung der Requests und ML-Berechnungen zur Bereitstellung kontinuierlicher Live-Prognosen.
+- Tägliche Prognosen/Wetterdaten in eine Datenbank speichern und abrufbar machen
+- nicht nur Marktpreis vs Prognose prüfen, sondern auch Wetter-Forecast vs reales Wetter prüfen
+- Zufall/Rauschen für die Wettersimulation
+- Ensemble beider Modelle?
+
 

@@ -47,14 +47,47 @@ def lade_und_normalisiere_mehrere_daten(dateien: list, spalten: list) -> list:
         dfs.append(df)
     return dfs
 
-# -----------------
-# Sektionen (Nav-Bar)
-# -----------------
+
+###### Sektionen
 
 ### 1. Stromdaten
 def sektion_stromdaten():
-    """Zeigt verschiedene Stromdaten-Visualisierungen basierend auf Dateien im docs-Ordner."""
-    st.subheader("Kennzahlen aus 2025")
+    """Zeigt verschiedene Visualisierungen basierend auf Dateien im docs-Ordner."""
+    st.subheader("Einleitung")
+    st.markdown("Ziel dieser Anwendung ist es, Strompreise in Abhängigkeit von der Wettervorhersage möglichst akkurat für eine ganze Woche vorherzusagen. Zusätzlich soll der Einfluss von Wind und Sonne auf den Strompreis untersucht werden können. " \
+    "   \n\n**Feature Engineering:**   \n" \
+    "Im ersten Schritt wurden 65 Koordinaten möglichst gleichmäßig über Deutschland verteilt ausgewählt (Siehe Karte unter 'Wetter Locations'). " \
+    "Der durchschnittswert der Wetterdaten dieser Koordinaten dient als Grundlage für die Wetter-Features. " \
+    "Da Wind- und Solaranlagen sehr unterschiedlich über das Land verteilt sind, erhalten die Koordinaten je nach Bundesland unterschiedliche Gewichtungen. " \
+    "In den nördlichen Bundesländern spielt Wind eine größere Rolle, während im Süden die Solarenergie dominiert. Bei den Solaranlagen verhält es sich i.d.R. genau entgegengesetzt zum Wind. " \
+    "  \n*Dies wird in der folgenden Abbildung dargestellt:*")
+    try:
+        st.image("docs/energy-charts_Installierte_Wind-_und_Solarleistung_in_Deutschland_in_2025.svg")
+    except FileNotFoundError:
+        st.error("❌ SVG-Datei 'energy-charts_Installierte_Wind-_und_Solarleistung_in_Deutschland_in_2025.svg' nicht gefunden.")
+    except Exception as e:
+        st.error(f"⚠️ Fehler beim Laden der SVG-Datei: {e}")
+
+    st.markdown("Insgesamt entstehen so vier Wetter-Features. Diese Werte werden als gewichteter Durchschnitt über alle Koordinaten berechnet. " \
+    "\n - GTI [Global Tilted Irradiance = Sonnenstrahlung in W/m²] " \
+    "\n - Windgeschwindigkeit [kmh] " \
+    "\n - Sonnenscheindauer [min/h] " \
+    "\n - Temperatur[°C] " \
+    "\n\nFür die Modellberechnung verwende ich aktuell nur den GTI und die Windgeschwindigkeit (keep it Simple!). " \
+    "Da sich das Verbrauchsverhalten werktags und am Wochenende unterscheidet, wurde zusätzlich das Feature 'IsWeekend' ergänzt. " \
+    "   \n\n**ML-Modell:**   \n" \
+    "Augenscheinlich fällt in der Erzeugung und in der Last schnell ein Muster auf: Durch den hohen Solarstromanteil wird zur Mittagszeit der meiste Strom erzeugt. Morgens und Abends der meiste Strom verbraucht. " \
+    "Siehe dazu auch: https://www.energy-charts.info/charts/power/chart.htm?l=de&c=DE   \n" \
+    "Daher habe ich mich für 2 Herangehensweisen entschieden: \n" \
+    "1. Strompreise für die gesamten 168h (1 Woche) direkt berechnen   \n" \
+    "2. Das wiederkehrende tägliche Muster nutzen und jeweils 7 mal die nächsten 24h zu prognostizieren   \n " \
+    "\nNach längeren Tests und Optimierung mit Optuna hat ein LSTM-Modell im ersten Ansatz gute Ergebnisse geliefert. Überraschenderweise erzielte jedoch ein leichteres MLP-Netz mit blockweiser 24h-Berechnung noch bessere und schnellere Ergebnisse. " \
+    "Unter 'Preisprognose' können die Prognosen beider Modelle mit dem tatsächlichen Marktpreisen der letzen 7 Tage verglichen werden. " \
+    "\n\n Im letzten Abschnitt 'Strompreis Wettersimulation' können verschiedene GTIs und Windgeschwindigkeiten prozentual zu den sesional möglichen Werten festgelegt werden. " \
+    "Mit diesen Werten als Features kann dann ein Strompreis prognostiziert werden und mit der Prognose der Wettervorhersage sowie dem realen Preis verglichen werden.")
+
+
+    st.subheader("Weitere Kennzahlen aus 2025")
     # 1. Diagramm: Nettostromerzeugung Q2 2025
     st.markdown(
         "Das folgende Balkendiagramm zeigt die öffentliche Nettostromerzeugung in Deutschland im zweiten Quartal 2025 "
@@ -136,7 +169,8 @@ def sektion_stromdaten():
         st.error(f"⚠️ Fehler beim Verarbeiten der Datei für Jahresvergleich: {e}")
 
     # 3. Diagramm: Installierte Netto-Leistung (SVG)
-    st.markdown("Entwicklung der installierten Kraftwerksleistung pro Energieträger (2002–2024).")
+    st.markdown("Entwicklung der installierten Kraftwerksleistung pro Energieträger (2002–2025). " \
+    "Vorallem Solarstrom nimmt erheblich zu!")
     try:
         st.image("docs/installierte_leistung_stromerzeugung.svg")
     except FileNotFoundError:
@@ -153,7 +187,7 @@ def sektion_wetter_locations():
     st.markdown(
         "Die Karte zeigt die Standorte, für die Wetterdaten ermittelt werden.  \n"
         "Über alle Standorte eines Bundeslandes hinweg werden die Durschnittswerte "
-        "ermittelt und anhand der anteiligen Erzeugung je Bundesland entsprechende Gewichtungen für die Modell-Prognosen vorgenommen.  \n"
+        "ermittelt und anhand der anteiligen Erzeugung je Bundesland entsprechende Gewichtungen für die Modell-Prognosen vorgenommen. ('SEA' repränsentiert als 17. Bundesland die Messpunkte für die Offshore Windanlagen)  \n"
         "  \n"
         "Die Punkte sind nach Bundesländern gruppiert und farblich gekennzeichnet."
     )
@@ -332,7 +366,7 @@ def sektion_price_vs_market():
     st.subheader("Strompreis-Prognose")
     st.markdown(
         "Vergleich von Strompreisprognosen aus verschiedenen KI-Modellen mit den tatsächlichen Marktpreisen "
-        "Es werden die letzten 7 Tage, für die historische Wetterdaten vorliegen, prognostiziert. Diese liegen API-Bedingt immer 2 Tage in der Vergangenheit."
+        "Es werden die letzten 7 Tage, für die historische Wetterdaten vorliegen, prognostiziert. Durch die API sind die historischen Daten immer erst zwei Tage später abrufbar."
     )
     st.sidebar.warning("Neuberechnung kann je nach Hardware einige Minuten in Anspruch nehmen!")
     if st.sidebar.button("Prognose (neu) berechnen"):
@@ -442,7 +476,32 @@ def sektion_price_vs_market():
         with col1:
             st.table(df_stats)
         with col2:
-            st.metric("StdDev Marktpreis", f"{std_true:.1f} €/MWh")
+            st.metric("StdDev Marktpreis", f"{std_true:.1f}")
+        
+        st.markdown(
+            """
+            **Erklärung der Kennzahlen:**  
+
+            - **RMSE (Root Mean Squared Error) [€/MWh]:**  
+            Durchschnittlicher Fehler, bei dem große Abweichungen stärker ins Gewicht fallen.
+
+            - **MAE (Mean Absolute Error) [€/MWh]:**  
+            Zeigt, wie stark die Prognose im Durchschnitt vom Marktpreis abweicht.
+
+            - **StdErr (Fehlerstreuung) [€/MWh]:**  
+            Gibt an, ob die Vorhersageabweichung meist ähnlich groß oder stark schwankend ist.  
+
+            - **R² (Bestimmtheitsmaß):**  
+            Kennzahl für die Modellgüte. Misst, wie viel besser das Modell gegenüber dem Mittelwert ist (1 = perfekt, 0 = gleich gut, <0 = schlechter).    
+
+            - **RMSE / StdDev Markt:**  
+            Verhältnis der Modellabweichung gegenüber der Schwankung des Strommarktes.  
+            Kennzahl < 1 = Modellfehler sind kleiner als die normale Marktschwankung.  
+
+            - **StdDev Marktpreis [€/MWh]:**  
+            Misst, wie stark die realen Marktpreise schwanken.
+            """
+            )
 
     #ausklappbare Tabelle
     with st.expander("Vergleichstabelle anzeigen", expanded=False):
@@ -459,6 +518,8 @@ def sektion_wetter_simulation():
     Ermöglicht Anpassungen per Sidebar und zeigt sowohl den Gesamtzeitraum als auch einen 7-Tage-Ausschnitt.
     """
     st.subheader("☁️ Wetterdaten-Simulation")
+    st.markdown("Hier eine kurze übersicht über die Funktionsweise der Wettersimulation. " \
+    "Es wird eine sesional typische Kurve für den GTI mit einstellbarem Offset erzeugt. Für die Windgeschwindigkeit wird ein Wert zwischen den jeweils stündlichen min/max Werten simuliert. ")
     try:
         df = pd.read_pickle("data/df_for_model.pkl")
     except FileNotFoundError:
@@ -734,7 +795,7 @@ def main():
     
 
     nav = [
-        "Marktkennzahlen",
+        "Einleitung und Kennzahlen",
         "Wetter Locations",
         "Wetter-Daten",
         "Preisprognose",
