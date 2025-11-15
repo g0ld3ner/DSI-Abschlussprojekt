@@ -127,7 +127,9 @@ class EnergyChartsInfo: ##### es fehlen noch die docstrings....
         df = pd.DataFrame({"unix_seconds": timestamp_list, "price": price_list})
         df2 = self.add_realtime_index(df)
         df3 = self.remove_unix_seconds(df2)
-        return df3
+        # ECI gibt jetzt alle 15 minuten einen Wert zurück
+        df4 = self.to_frequency(df3, "h")
+        return df4
     
 
 
