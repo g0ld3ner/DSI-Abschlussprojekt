@@ -3,14 +3,16 @@
 
 ## Projektbeschreibung
 Dieses Projekt entstand im Rahmen meiner Weiterbildung beim DSI.
+
+**Die Implementierungszeit für die erste funktionsfähige Version betrug insgesamt nur rund zwei Wochen. Das Projekt ist daher in erster Linie als Tech-Demo bzw. Machbarkeitsprüfung zu verstehen und spiegelt nicht meinen heutigen Anspruch an Code-Qualität und Architektur wider.**
+
 Eine interaktive Anwendung zur Analyse und Visualisierung von Strompreisen in Abhängigkeit von Wetterdaten.
 Die Anwendung ermöglicht das Laden, Simulieren und Aufbereiten historischer Wetter- und Preisdaten sowie die Prognose zukünftiger Marktpreise (+7 Tage).
-
 Kern des Projekts ist die Strompreisprognose verschiedener Machine-Learning-Modelle im Vergleich zu den tatsächlichen Marktpreisen.
-Dazu wurden 60+ Koordinaten verteilt über ganz Deutschland gewählt, um eine möglichst homogene Wetterprognose für das ganze Land zu erhalten. Die Verteilung der Erzeuger sind dafür aber sehr heterogen (viele Windkraftwerke im Norden, viele Solarkraftwerke im Süden). Daher fließen die Daten der Koordinaten gewichtet nach "Anteil an der Erzeugung je Bundesland" in die Modellberechnung ein. 
+Dazu wurden 60+ Koordinaten verteilt über ganz Deutschland gewählt, um eine möglichst homogene Wetterprognose für das ganze Land zu erhalten. Die Verteilung der Erzeuger ist dafür aber sehr heterogen (viele Windkraftwerke im Norden, viele Solarkraftwerke im Süden). Daher fließen die Daten der Koordinaten gewichtet nach "Anteil an der Erzeugung je Bundesland" in die Modellberechnung ein. 
 Des Weiteren lassen sich Sonnenstrahlung (GTI) und Windgeschwindigkeit simulieren, um „Was-wäre-wenn“-Szenarien für Strompreise zu untersuchen.
 
-**Weitere Details in der App. Link zur Demo: https://strom-app.mayone.de/**
+**Weitere Details in der App. Link zur Demo: https://strom-app.mayone.de/** <-- Aktuell Offline, ich kümmere mich Zeitnah um ein neues Hosting
 
 ## Features
 - Kurze Übersicht zu den Kennzahlen aus 2025
@@ -58,23 +60,24 @@ Des Weiteren lassen sich Sonnenstrahlung (GTI) und Windgeschwindigkeit simuliere
 ## Kontakt & Lizenz
 Dieses Projekt entstand im Rahmen des Data Science Abschlussprojekts (DSI).
 Nutzung und Weitergabe bitte nur nach Rücksprache.
-Bei Fragen oder Interesse an Erweiterungen:
+Bei Fragen oder Interesse:
 
 https://github.com/g0ld3ner
 
 
 ## Changelog:
-- 2025-08: Ausführliche Projektbeschreibung
+- 2025-08: Ausführlichere Projektbeschreibung
 - 2025-07: Täglicher Cronjob, Visualisierung verbessert
-- 2025-06: Refactoring, Dokumentation, Fehlerhandling verbessert
+- 2025-06: kleines Refactoring, Dokumentation und Fehlerhandling verbessert
 - 2025-04: Erster Prototyp für die Abschlusspräsentation 
 
 --------------------------------
 
 ## Ausblick:
-- Tägliche Prognosen/Wetterdaten in eine Datenbank speichern und abrufbar machen
+- Umfassendes Refactoring!
+- Tägliche Prognosen/Wetterdaten/Marktpreise in eine Datenbank speichern und abrufbar machen
 - nicht nur Marktpreis vs Prognose prüfen, sondern auch Wetter-Forecast vs reales Wetter prüfen
-- Zufall/Rauschen für die Wettersimulation
 - Ensemble beider Modelle?
+- Testing einführen
 
 
